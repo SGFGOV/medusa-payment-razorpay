@@ -39,6 +39,8 @@ const plugins = [
 You can refer this to see how the client side is implemented for the gatsby medusa starter
 SGFGOV:feat/medusa-payment-razorpay (https://github.com/SGFGOV/gatsby-starter-medusa/tree/feat/medusa-payment-razorpay)
 
+On the client you need to specify on the api key not the api secrets :)
+
 
 ## Contributing
 
