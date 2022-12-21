@@ -34,7 +34,7 @@ const plugins = [
   },
   ...]
 ```
-## client side configuration
+## Client side configuration
 
 You can refer this to see how the client side is implemented for the gatsby medusa starter
 SGFGOV:feat/medusa-payment-razorpay (https://github.com/SGFGOV/gatsby-starter-medusa/tree/feat/medusa-payment-razorpay)
@@ -56,3 +56,8 @@ Please make sure to update tests as appropriate.
 
 ## Disclaimer
 The code was tested on limited number of usage scenarios. There maybe unforseen bugs, please raise the issues as they come, or create pull requests if you'd like to submit fixes.
+
+
+## Support us 
+
+As much as we love FOSS software, nothing in this world is truely free. We'll be grateful if you can buy our team a coffee (https://www.buymeacoffee.com/uMRqW9NmS9). 
