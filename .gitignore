@@ -7,17 +7,14 @@ node_modules
 .vscode
 
 /dist
-services
-subscribers
 
 ./api
 ./services
 ./models
 ./subscribers
-__mocks__
 /*.tgz
 *.map
-api
+
 # Logs
 logs
 *.log
@@ -122,3 +119,8 @@ dist
 
 # TernJS port file
 .tern-port
+
+services/*
+api/*
+subscribers/*
+__mocks__/*
