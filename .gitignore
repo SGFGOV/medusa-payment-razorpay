@@ -141,4 +141,5 @@ dist
 .tern-port
 *.tgz
 
+__mocks__/
 
