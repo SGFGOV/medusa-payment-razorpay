@@ -1,20 +1,40 @@
+.idea
 /lib
 node_modules
 .DS_store
+**/.DS_Store
 .env*
-/*.js
-!index.js
-.vscode
+index.js
+*.js.map
+dist
+coverage
+api/
+loaders/
+migrations/
+models/
+services/
+types/
+utils/
+subscribers/
+index.d.ts
+#api/
+#services/
+#models/
+#subscribers/
+#migrations/
+#loaders/
+#utils/
+#types/
+#utils/*.js
+#index.*
 
-/dist
+!src/**
 
-./api
-./services
-./models
-./subscribers
-/*.tgz
-*.map
+./tsconfig.tsbuildinfo
+./package-lock.json
+./yarn.json
 
+*.log
 # Logs
 logs
 *.log
@@ -119,8 +139,6 @@ dist
 
 # TernJS port file
 .tern-port
+*.tgz
 
-services/*
-api/*
-subscribers/*
-__mocks__/*
+

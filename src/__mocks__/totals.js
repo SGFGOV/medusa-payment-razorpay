@@ -1,9 +1,9 @@
 export const TotalsServiceMock = {
-  getTotal: jest.fn(()=>100*100),
-}
+    getTotal: jest.fn(() => 100 * 100)
+};
 
 const mock = jest.fn().mockImplementation(() => {
-  return TotalsServiceMock
-})
+    return TotalsServiceMock;
+});
 
-export default mock
+export default mock;
