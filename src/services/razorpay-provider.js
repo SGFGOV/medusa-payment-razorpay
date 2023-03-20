@@ -1,7 +1,6 @@
 import _ from "lodash";
 import Razorpay from "razorpay";
 import { PaymentService } from "medusa-interfaces";
-const crypto = require("crypto");
 
 class RazorpayProviderService extends PaymentService {
     static identifier = "razorpay";
@@ -45,9 +44,9 @@ class RazorpayProviderService extends PaymentService {
         razorpay_order_id,
         razorpay_signature
     ) {
-        let crypto = require("crypto");
-        let body = razorpay_order_id + "|" + razorpay_payment_id;
-        let expectedSignature = crypto
+        const crypto = require("crypto");
+        const body = razorpay_order_id + "|" + razorpay_payment_id;
+        const expectedSignature = crypto
             .createHmac("sha256", this.options_.api_key_secret)
             .update(body.toString())
             .digest("hex");
@@ -100,30 +99,28 @@ class RazorpayProviderService extends PaymentService {
         if (!razorpayCustomerId) {
             return Promise.resolve();
         }
-        try {
-            return this.razorpay_.customers.fetch(razorpayCustomerId);
-        } catch (error) {
-            throw error;
-        }
+
+        return this.razorpay_.customers.fetch(razorpayCustomerId);
     }
 
     async _findExistingCustomer(email, contact) {
-        let customer_limit_per_page = 100;
+        const customer_limit_per_page = 100;
         let razorpayCustomerOfInterest = undefined;
         let notFound = true;
         let fectchCustomerQueryParams = {
             count: customer_limit_per_page,
             skip: 0
         };
-
+        let razorpayCustomers;
         do {
-            let razorpayCustomers = await this.razorpay_.customers.all(
+            razorpayCustomers = await this.razorpay_.customers.all(
                 fectchCustomerQueryParams
             );
-            let customers = razorpayCustomers.items;
-            let customer_interest = customers.filter((customer) => {
-                if (customer.email === email || customer.contact === contact)
+            const customers = razorpayCustomers.items;
+            const customer_interest = customers.filter((customer) => {
+                if (customer.email === email || customer.contact === contact) {
                     return true;
+                }
             });
             if (customer_interest.length > 0) {
                 razorpayCustomerOfInterest =
@@ -154,64 +151,58 @@ class RazorpayProviderService extends PaymentService {
      */
 
     async createCustomer(customer) {
-        try {
-            let createCustomerQueryParams = {
-                fail_existing: 0,
-                email: "startup@medusa.com"
-            };
-            let razorpayCustomer = undefined;
-            let razorpayCustomerUpdated = undefined;
-            let fullname =
-                (customer.first_name ?? "") + " " + (customer.last_name ?? "");
-            let customerName = customer.name ?? fullname;
-            let notes = {};
-            if (
-                customerName?.length >
-                    RazorpayProviderService.RAZORPAY_NAME_LENGTH_LIMIT ||
-                customerName === " "
-            ) {
-                createCustomerQueryParams.name = customerName?.substring(0, 50);
-            } else {
-                createCustomerQueryParams.name =
-                    customerName ?? "medusa-startup";
-            }
-            createCustomerQueryParams.notes = { fullname: customerName };
-            //  if (customer.email !=undefined )  {
-            createCustomerQueryParams.email =
-                customer.email ?? "startup@medusa.com";
-            // }
-            //  if (customer.contact !=undefined ) {
-            createCustomerQueryParams.contact =
-                customer.contact ?? "9000000000";
-            // }
-            createCustomerQueryParams["notes"]["customer_id"] = customer.id;
-            try {
-                razorpayCustomer = await this.razorpay_.customers.create(
-                    createCustomerQueryParams
-                );
-                if (customer.id) {
-                    await this.customerService_.update(customer.id, {
-                        metadata: { razorpay_id: razorpayCustomer.id }
-                    });
-                }
-            } catch (error) {
-                razorpayCustomer = this._findExistingCustomer(
-                    customer.email,
-                    customer.contact
-                );
-            }
-            if (razorpayCustomer?.created_at) {
-                razorpayCustomerUpdated = await this.updateCustomer(
-                    razorpayCustomer.id,
-                    customer
-                ); /* updating the remaining details */
-            }
-
-            return razorpayCustomerUpdated ?? razorpayCustomer;
-        } catch (error) {
-            throw error;
+        const createCustomerQueryParams = {
+            fail_existing: 0,
+            email: "startup@medusa.com"
+        };
+        let razorpayCustomer = undefined;
+        let razorpayCustomerUpdated = undefined;
+        const fullname =
+            (customer.first_name ?? "") + " " + (customer.last_name ?? "");
+        const customerName = customer.name ?? fullname;
+        if (
+            customerName?.length >
+                RazorpayProviderService.RAZORPAY_NAME_LENGTH_LIMIT ||
+            customerName === " "
+        ) {
+            createCustomerQueryParams.name = customerName?.substring(0, 50);
+        } else {
+            createCustomerQueryParams.name = customerName ?? "medusa-startup";
         }
+        createCustomerQueryParams.notes = { fullname: customerName };
+        //  if (customer.email !=undefined )  {
+        createCustomerQueryParams.email =
+            customer.email ?? "startup@medusa.com";
+        // }
+        //  if (customer.contact !=undefined ) {
+        createCustomerQueryParams.contact = customer.contact ?? "9000000000";
+        // }
+        createCustomerQueryParams["notes"]["customer_id"] = customer.id;
+        try {
+            razorpayCustomer = await this.razorpay_.customers.create(
+                createCustomerQueryParams
+            );
+            if (customer.id) {
+                await this.customerService_.update(customer.id, {
+                    metadata: { razorpay_id: razorpayCustomer.id }
+                });
+            }
+        } catch (error) {
+            razorpayCustomer = this._findExistingCustomer(
+                customer.email,
+                customer.contact
+            );
+        }
+        if (razorpayCustomer?.created_at) {
+            razorpayCustomerUpdated = await this.updateCustomer(
+                razorpayCustomer.id,
+                customer
+            ); /* updating the remaining details */
+        }
+
+        return razorpayCustomerUpdated ?? razorpayCustomer;
     }
+
     /**
      * Updates a Razorpay customer using a Medusa customer.
      * @param {object} razorpayCustomerId - razorpay customer id
@@ -219,10 +210,10 @@ class RazorpayProviderService extends PaymentService {
      * @return {Promise<object>} Razorpay customer
      */
     async updateCustomer(razorpayCustomerId, customer) {
-        let updateCustomerQueryParams = {};
-        let fullname =
+        const updateCustomerQueryParams = {};
+        const fullname =
             (customer.first_name ?? "") + " " + (customer.last_name ?? "");
-        let customerName = customer.name ?? fullname;
+        const customerName = customer.name ?? fullname;
         delete customer.first_name;
         delete customer.last_name;
         Object.assign(updateCustomerQueryParams, customer);
@@ -234,17 +225,14 @@ class RazorpayProviderService extends PaymentService {
         } else {
             updateCustomerQueryParams.name = customerName ?? "";
         }
-        try {
-            delete updateCustomerQueryParams.id;
-            delete updateCustomerQueryParams.password_hash;
-            const razorpayUpdateCustomer = await this.razorpay_.customers.edit(
-                razorpayCustomerId,
-                updateCustomerQueryParams
-            );
-            return razorpayUpdateCustomer;
-        } catch (error) {
-            throw error;
-        }
+
+        delete updateCustomerQueryParams.id;
+        delete updateCustomerQueryParams.password_hash;
+        const razorpayUpdateCustomer = await this.razorpay_.customers.edit(
+            razorpayCustomerId,
+            updateCustomerQueryParams
+        );
+        return razorpayUpdateCustomer;
     }
     /**
      * Creates a Razorpay Order intent.
@@ -253,8 +241,7 @@ class RazorpayProviderService extends PaymentService {
      * @return {object} Razorpay order intent
      */
     async createOrder(cart) {
-        const { customer_id, region_id, email, order_number, display_id } =
-            cart;
+        const { customer_id, region_id, email, display_id } = cart;
         const { currency_code } = await this.regionService_.retrieve(region_id);
 
         const amount = await this.totalsService_.getTotal(cart);
@@ -316,24 +303,16 @@ class RazorpayProviderService extends PaymentService {
      * @return {Promise<object>} Razorpay order
      */
     async retrievePayment(sessionData) {
-        try {
-            return this.razorpay_.orders.fetch(sessionData.id);
-        } catch (error) {
-            throw error;
-        }
+        return this.razorpay_.orders.fetch(sessionData.id);
     }
 
     /**
      * Gets a Razorpay order intent and returns it.
-     * @param {object} data - the data of the payment to retrieve
+     * @param {sessionData} sessionData - the data of the payment to retrieve
      * @return {Promise<object>} Razorpay order
      */
     async getPaymentData(sessionData) {
-        try {
-            return this.razorpay_.orders.fetch(sessionData.data.id);
-        } catch (error) {
-            throw error;
-        }
+        return this.razorpay_.orders.fetch(sessionData.data.id);
     }
 
     /**
@@ -346,48 +325,39 @@ class RazorpayProviderService extends PaymentService {
     async authorizePayment(sessionData, context = {}) {
         const stat = await this.getStatus(sessionData.data);
 
-        try {
-            return { data: sessionData.data, status: stat };
-        } catch (error) {
-            throw error;
-        }
+        return { data: sessionData.data, status: stat };
     }
 
     async updatePaymentData(sessionData, update) {
-        try {
-            let result = {};
+        let result = {};
 
-            // razorpay_payment_id: 'pay_JE243QWSepvqeH', razorpay_order_id: 'order_JE217mxaUTILbJ', razorpay_signature: '28021fc7955db5841a386c95c5186e98fb6d529b8196cb195af17af22da0e4fa'
-            if (update.razorpay_payment_id) {
-                result = this.razorpay_.orders.edit(sessionData.id, {
-                    notes: {
-                        razorpay_payment_id: update.razorpay_payment_id,
-                        razorpay_order_id: update.razorpay_order_id,
-                        razorpay_signature: update.razorpay_signature
-                    }
-                });
-            } else {
-                result = this.razorpay_.orders.edit(sessionData.id, {
-                    notes: update
-                });
-            }
-
-            return result;
-        } catch (error) {
-            throw error;
+        // razorpay_payment_id: 'pay_JE243QWSepvqeH', razorpay_order_id: 'order_JE217mxaUTILbJ', razorpay_signature: '28021fc7955db5841a386c95c5186e98fb6d529b8196cb195af17af22da0e4fa'
+        if (update.razorpay_payment_id) {
+            result = this.razorpay_.orders.edit(sessionData.id, {
+                notes: {
+                    razorpay_payment_id: update.razorpay_payment_id,
+                    razorpay_order_id: update.razorpay_order_id,
+                    razorpay_signature: update.razorpay_signature
+                }
+            });
+        } else {
+            result = this.razorpay_.orders.edit(sessionData.id, {
+                notes: update
+            });
         }
+
+        return result;
     }
 
     /**
      * Updates Razorpay order.
      * @param {object} sessionData - payment session data.
-     * @param {object} update - object to update intent with
+     * @param {object} cart - cart to update intent with
      * @return {object} Razorpay order
      */
     async updatePayment(sessionData, cart) {
-        try {
-            return this.createPayment(cart);
-            /*  const razorpayId = cart.customer?.metadata?.razorpay_id || undefined
+        return this.createPayment(cart);
+        /*  const razorpayId = cart.customer?.metadata?.razorpay_id || undefined
 
       if (razorpayId !== sessionData?.data?.customer_id??"") {
         return this.createPayment(cart)
@@ -401,39 +371,34 @@ class RazorpayProviderService extends PaymentService {
         })
       }
     */
-        } catch (error) {
-            throw error;
-        }
     }
 
     async deletePayment(payment) {
-        try {
-            const { id } = payment.data.payment_id;
-            return this.razorpay_.payments.cancel(id).catch((err) => {
+        /** currently deleting payments is not supported via the api */
+        return;
+        /* const id = payment.data.payment_id;
+        if (id) {
+            return this.razorpay_.payments?.cancel(id)?.catch((err) => {
                 if (err.statusCode === 400) {
                     return;
                 }
                 throw err;
             });
-        } catch (error) {
-            throw error;
-        }
+        } else {
+            return;
+        }*/
     }
 
-    /* razory pay doesn't support updating customer details of orders  thus we return an existing order as is*/
+    /* razorpayy pay doesn't support updating customer details of orders  thus we return an existing order as is*/
     /**
      * Updates customer of Razorpay order.
      * @param {string} order_id - id of order to update
      * @param {string} customerId - id of new Razorpay customer
      * @return {object} Razorpay order
      */
-    async updatePaymentIntentCustomer(order_id, customerId) {
-        try {
-            order_of_interest = this.razorpay_.orders.fetch(order_id);
-            return order_of_interest;
-        } catch (error) {
-            throw error;
-        }
+    async updatePaymentIntentCustomer(order_id) {
+        const order_of_interest = this.razorpay_.orders.fetch(order_id);
+        return order_of_interest;
     }
 
     /**
@@ -454,8 +419,9 @@ class RazorpayProviderService extends PaymentService {
                     razorpay_order_id,
                     razorpay_signature
                 )
-            )
+            ) {
                 return;
+            }
             const paymentIntent = await this.razorpay_.payments.fetch(
                 razorpay_payment_id
             );
@@ -482,6 +448,7 @@ class RazorpayProviderService extends PaymentService {
      * Refunds payment for Razorpay order.
      * @param {object} paymentData - payment method data from cart
      * @param {number} amountToRefund - amount to refund
+     * @param {string} speed - "optimum"
      * @return {string} refunded order
      */
     async refundPayment(paymentData, amountToRefund, speed = "optimum") {
@@ -496,50 +463,42 @@ class RazorpayProviderService extends PaymentService {
                 razorpay_order_id,
                 razorpay_signature
             )
-        )
+        ) {
             return;
-        try {
-            let paymentMade = await this.razorpay_.payments.fetch(
-                razorpay_payment_id
+        }
+
+        const paymentMade = await this.razorpay_.payments.fetch(
+            razorpay_payment_id
+        );
+        if (
+            paymentMade.amount - paymentMade.amount_refunded >=
+            amountToRefund
+        ) {
+            const refundResult = await this.razorpay_.payments.refund(
+                razorpay_payment_id,
+                {
+                    amount: Math.round(amountToRefund),
+                    // id: razorpay_payment_id,
+                    speed: speed,
+                    receipt: paymentData.data.order_id
+                }
             );
-            if (
-                paymentMade.amount - paymentMade.amount_refunded >=
-                amountToRefund
-            ) {
-                const refundResult = await this.razorpay_.payments.refund(
-                    razorpay_payment_id,
-                    {
-                        amount: Math.round(amountToRefund),
-                        // id: razorpay_payment_id,
-                        speed: speed,
-                        receipt: paymentData.data.order_id
-                    }
-                );
-                return refundResult;
-            } else return;
-        } catch (error) {
-            throw error;
+            return refundResult;
+        } else {
+            return;
         }
     }
 
     /**
      * Cancels payment for Razorpay order.
-     * @param {object} paymentData - payment method data from cart
+     * @param {object} payment - payment method data from cart
      * @return {object} canceled order
      * razorpay doesn't support cancelled orders once created,
      * the status of the, it merely returns the current order.
      */
     async cancelPayment(payment) {
-        const { id } = payment.data;
-        try {
-            return await this.razorpay_.orders.fetch(id);
-        } catch (error) {
-            if (error.payment_intent.status === "canceled") {
-                return error.payment_intent;
-            }
-
-            throw error;
-        }
+        const id = payment.data.id;
+        return await this.razorpay_.orders.fetch(id);
     }
 
     /**
