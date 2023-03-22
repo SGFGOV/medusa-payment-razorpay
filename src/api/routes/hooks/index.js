@@ -10,7 +10,11 @@ export default (app) => {
     route.post(
         "/hooks",
         // razorpay constructEvent fails without body-parser
-        bodyParser.raw({ type: "application/json" }),
+        bodyParser.json({
+            verify: (req, res, buf) => {
+              req.rawBody = buf;
+            },
+          }),
         middlewares.wrap(require("./razorpay").default)
     );
     return app;
