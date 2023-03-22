@@ -57,30 +57,50 @@ class RazorpayProviderService extends PaymentService {
     }
 
     /**
-     * Fetches Razorpay order. Check its status and returns the
+     * Validates Signature and fetches Razorpay payment. Check its status and returns the
      * corresponding Medusa status.
-     * @param {object} paymentData - payment method data from cart
-     * @return {string} the status of the order
+     * https://docs.medusajs.com/modules/carts-and-checkout/backend/add-payment-provider#getstatus
+     * @param {PaymentSessionData} paymentData - the data stored with the payment session
+     * @return {Promise<PaymentSessionStatus>} the status of the order
      */
-    async getStatus(orderData) {
-        const { id } = orderData;
-        const orderResponse = await this.razorpay_.orders.fetch(id);
+    async getStatus(paymentData) {
+        try {
+        const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = paymentData.notes;
 
-        let status = "pending";
+        if (this._validateSignature(razorpay_payment_id, razorpay_order_id, razorpay_signature)) {
+            const paymentResponse = await this.razorpay_.payments.fetch(razorpay_payment_id);
 
-        if (orderResponse.status === "created") {
-            return status;
+            let medusaStatus = 'pending';
+
+            switch (paymentResponse.status) {
+            case 'created':
+                medusaStatus = 'pending';
+                break
+            case 'authorized':
+                medusaStatus = 'authorized';
+                break
+            case 'captured':
+                medusaStatus = 'authorized';
+                break
+            case 'refunded':
+                medusaStatus = 'authorized';
+                break
+            case 'failed':
+                medusaStatus = 'error';
+                break
+
+            default:
+                medusaStatus = 'pending';
+                break
+            }
+
+            return medusaStatus;
         }
-
-        if (orderResponse.status === "attempted") {
-            return "processing";
-        }
-
-        if (orderResponse.status === "paid") {
-            status = "authorized";
-            return status;
+        } catch (error) {
+        throw error
         }
     }
+
     /**
      * This function is irrelavent in razorpay standard checkout, as the payment types are stored and activiated in the client
      * Fetches a customers saved payment methods if registered in Razorpay.
@@ -406,18 +426,11 @@ class RazorpayProviderService extends PaymentService {
         }
     }
 
+    /* Razorpay doesn't support cancelling/deleting orders or payments
+    *  https://docs.medusajs.com/modules/carts-and-checkout/backend/add-payment-provider#deletepayment
+    */
     async deletePayment(payment) {
-        try {
-            const { id } = payment.data.payment_id;
-            return this.razorpay_.payments.cancel(id).catch((err) => {
-                if (err.statusCode === 400) {
-                    return;
-                }
-                throw err;
-            });
-        } catch (error) {
-            throw error;
-        }
+        return;
     }
 
     /* razory pay doesn't support updating customer details of orders  thus we return an existing order as is*/
