@@ -51,8 +51,6 @@ class RazorpayProviderService extends PaymentService {
             .createHmac("sha256", this.options_.api_key_secret)
             .update(body.toString())
             .digest("hex");
-        //                             console.log("sig received " ,razorpay_signature);
-        //                             console.log("sig generated " ,expectedSignature);
         return expectedSignature === razorpay_signature;
     }
 
@@ -64,6 +62,7 @@ class RazorpayProviderService extends PaymentService {
      * @return {Promise<PaymentSessionStatus>} the status of the order
      */
     async getStatus(paymentData) {
+        console.log("paymentData", paymentData)
         try {
         const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = paymentData.notes;
 
@@ -88,7 +87,6 @@ class RazorpayProviderService extends PaymentService {
             case 'failed':
                 medusaStatus = 'error';
                 break
-
             default:
                 medusaStatus = 'pending';
                 break
@@ -377,7 +375,6 @@ class RazorpayProviderService extends PaymentService {
         try {
             let result = {};
 
-            // razorpay_payment_id: 'pay_JE243QWSepvqeH', razorpay_order_id: 'order_JE217mxaUTILbJ', razorpay_signature: '28021fc7955db5841a386c95c5186e98fb6d529b8196cb195af17af22da0e4fa'
             if (update.razorpay_payment_id) {
                 result = this.razorpay_.orders.edit(sessionData.id, {
                     notes: {
