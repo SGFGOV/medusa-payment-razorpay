@@ -51,36 +51,54 @@ class RazorpayProviderService extends PaymentService {
             .createHmac("sha256", this.options_.api_key_secret)
             .update(body.toString())
             .digest("hex");
-        //                             console.log("sig received " ,razorpay_signature);
-        //                             console.log("sig generated " ,expectedSignature);
         return expectedSignature === razorpay_signature;
     }
 
     /**
-     * Fetches Razorpay order. Check its status and returns the
+     * Validates Signature and fetches Razorpay payment. Check its status and returns the
      * corresponding Medusa status.
-     * @param {object} paymentData - payment method data from cart
-     * @return {string} the status of the order
+     * https://docs.medusajs.com/modules/carts-and-checkout/backend/add-payment-provider#getstatus
+     * @param {PaymentSessionData} paymentData - the data stored with the payment session
+     * @return {Promise<PaymentSessionStatus>} the status of the order
      */
-    async getStatus(orderData) {
-        const { id } = orderData;
-        const orderResponse = await this.razorpay_.orders.fetch(id);
+    async getStatus(paymentData) {
+        console.log("paymentData", paymentData)
+        try {
+        const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = paymentData.notes;
 
-        let status = "pending";
+        if (this._validateSignature(razorpay_payment_id, razorpay_order_id, razorpay_signature)) {
+            const paymentResponse = await this.razorpay_.payments.fetch(razorpay_payment_id);
 
-        if (orderResponse.status === "created") {
-            return status;
+            let medusaStatus = 'pending';
+
+            switch (paymentResponse.status) {
+            case 'created':
+                medusaStatus = 'pending';
+                break
+            case 'authorized':
+                medusaStatus = 'authorized';
+                break
+            case 'captured':
+                medusaStatus = 'authorized';
+                break
+            case 'refunded':
+                medusaStatus = 'authorized';
+                break
+            case 'failed':
+                medusaStatus = 'error';
+                break
+            default:
+                medusaStatus = 'pending';
+                break
+            }
+
+            return medusaStatus;
         }
-
-        if (orderResponse.status === "attempted") {
-            return "processing";
-        }
-
-        if (orderResponse.status === "paid") {
-            status = "authorized";
-            return status;
+        } catch (error) {
+        throw error
         }
     }
+
     /**
      * This function is irrelavent in razorpay standard checkout, as the payment types are stored and activiated in the client
      * Fetches a customers saved payment methods if registered in Razorpay.
@@ -357,7 +375,6 @@ class RazorpayProviderService extends PaymentService {
         try {
             let result = {};
 
-            // razorpay_payment_id: 'pay_JE243QWSepvqeH', razorpay_order_id: 'order_JE217mxaUTILbJ', razorpay_signature: '28021fc7955db5841a386c95c5186e98fb6d529b8196cb195af17af22da0e4fa'
             if (update.razorpay_payment_id) {
                 result = this.razorpay_.orders.edit(sessionData.id, {
                     notes: {
@@ -406,18 +423,11 @@ class RazorpayProviderService extends PaymentService {
         }
     }
 
+    /* Razorpay doesn't support cancelling/deleting orders or payments
+    *  https://docs.medusajs.com/modules/carts-and-checkout/backend/add-payment-provider#deletepayment
+    */
     async deletePayment(payment) {
-        try {
-            const { id } = payment.data.payment_id;
-            return this.razorpay_.payments.cancel(id).catch((err) => {
-                if (err.statusCode === 400) {
-                    return;
-                }
-                throw err;
-            });
-        } catch (error) {
-            throw error;
-        }
+        return;
     }
 
     /* razory pay doesn't support updating customer details of orders  thus we return an existing order as is*/
