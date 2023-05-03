@@ -91,7 +91,8 @@ describe("RazorpayProviderService", () => {
             {
                 customerService: CustomerServiceMock,
                 regionService: RegionServiceMock,
-                totalsService: TotalsServiceMock
+                totalsService: TotalsServiceMock,
+                logger: console
             },
             {
                 api_key: api_key,

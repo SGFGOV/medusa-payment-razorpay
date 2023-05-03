@@ -1,4 +1,3 @@
-import _ from "lodash";
 import Razorpay from "razorpay";
 import { PaymentService } from "medusa-interfaces";
 
@@ -24,7 +23,7 @@ class RazorpayProviderService extends PaymentService {
          */
         this.logger = logger;
         this.options_ = options;
-
+        this.logger = logger;
         /** @private @const {Razorpay} */
         this.razorpay_ = new Razorpay(
             (options = {
@@ -440,7 +439,7 @@ class RazorpayProviderService extends PaymentService {
     /* Razorpay doesn't support cancelling/deleting orders or payments
      *  https://docs.medusajs.com/modules/carts-and-checkout/backend/add-payment-provider#deletepayment
      */
-    async deletePayment() {
+    async deletePayment(payment) {
         return;
     }
 
