@@ -1,13 +1,15 @@
 import _ from "lodash";
 import Razorpay from "razorpay";
 import { PaymentService } from "medusa-interfaces";
-const crypto = require("crypto");
 
 class RazorpayProviderService extends PaymentService {
     static identifier = "razorpay";
     static RAZORPAY_NAME_LENGTH_LIMIT = 50;
     static seq_number = 0;
-    constructor({ customerService, totalsService, regionService }, options) {
+    constructor(
+        { customerService, totalsService, regionService, logger },
+        options
+    ) {
         super();
 
         /**
@@ -20,6 +22,7 @@ class RazorpayProviderService extends PaymentService {
          *    capture: true
          *  }
          */
+        this.logger = logger;
         this.options_ = options;
 
         /** @private @const {Razorpay} */
@@ -45,9 +48,9 @@ class RazorpayProviderService extends PaymentService {
         razorpay_order_id,
         razorpay_signature
     ) {
-        let crypto = require("crypto");
-        let body = razorpay_order_id + "|" + razorpay_payment_id;
-        let expectedSignature = crypto
+        const crypto = require("crypto");
+        const body = razorpay_order_id + "|" + razorpay_payment_id;
+        const expectedSignature = crypto
             .createHmac("sha256", this.options_.api_key_secret)
             .update(body.toString())
             .digest("hex");
@@ -62,40 +65,52 @@ class RazorpayProviderService extends PaymentService {
      * @return {Promise<PaymentSessionStatus>} the status of the order
      */
     async getStatus(paymentData) {
-        console.log("paymentData", paymentData)
+        this.logger.info("paymentData", paymentData);
         try {
-        const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = paymentData.notes;
+            const {
+                razorpay_order_id,
+                razorpay_payment_id,
+                razorpay_signature
+            } = paymentData.notes;
 
-        if (this._validateSignature(razorpay_payment_id, razorpay_order_id, razorpay_signature)) {
-            const paymentResponse = await this.razorpay_.payments.fetch(razorpay_payment_id);
+            if (
+                this._validateSignature(
+                    razorpay_payment_id,
+                    razorpay_order_id,
+                    razorpay_signature
+                )
+            ) {
+                const paymentResponse = await this.razorpay_.payments.fetch(
+                    razorpay_payment_id
+                );
 
-            let medusaStatus = 'pending';
+                let medusaStatus = "pending";
 
-            switch (paymentResponse.status) {
-            case 'created':
-                medusaStatus = 'pending';
-                break
-            case 'authorized':
-                medusaStatus = 'authorized';
-                break
-            case 'captured':
-                medusaStatus = 'authorized';
-                break
-            case 'refunded':
-                medusaStatus = 'authorized';
-                break
-            case 'failed':
-                medusaStatus = 'error';
-                break
-            default:
-                medusaStatus = 'pending';
-                break
+                switch (paymentResponse.status) {
+                    case "created":
+                        medusaStatus = "pending";
+                        break;
+                    case "authorized":
+                        medusaStatus = "authorized";
+                        break;
+                    case "captured":
+                        medusaStatus = "authorized";
+                        break;
+                    case "refunded":
+                        medusaStatus = "authorized";
+                        break;
+                    case "failed":
+                        medusaStatus = "error";
+                        break;
+                    default:
+                        medusaStatus = "pending";
+                        break;
+                }
+
+                return medusaStatus;
             }
-
-            return medusaStatus;
-        }
         } catch (error) {
-        throw error
+            this.handleError(error);
         }
     }
 
@@ -121,27 +136,28 @@ class RazorpayProviderService extends PaymentService {
         try {
             return this.razorpay_.customers.fetch(razorpayCustomerId);
         } catch (error) {
-            throw error;
+            this.handleError(error);
         }
     }
 
     async _findExistingCustomer(email, contact) {
-        let customer_limit_per_page = 100;
+        const customer_limit_per_page = 100;
         let razorpayCustomerOfInterest = undefined;
         let notFound = true;
         let fectchCustomerQueryParams = {
             count: customer_limit_per_page,
             skip: 0
         };
-
+        let razorpayCustomers = undefined;
         do {
-            let razorpayCustomers = await this.razorpay_.customers.all(
+            razorpayCustomers = await this.razorpay_.customers.all(
                 fectchCustomerQueryParams
             );
-            let customers = razorpayCustomers.items;
-            let customer_interest = customers.filter((customer) => {
-                if (customer.email === email || customer.contact === contact)
+            const customers = razorpayCustomers.items;
+            const customer_interest = customers.filter((customer) => {
+                if (customer.email === email || customer.contact === contact) {
                     return true;
+                }
             });
             if (customer_interest.length > 0) {
                 razorpayCustomerOfInterest =
@@ -157,9 +173,9 @@ class RazorpayProviderService extends PaymentService {
                 };
             }
         } while (
-            razorpayCustomers.response <= customer_limit_per_page &&
+            razorpayCustomers?.response <= customer_limit_per_page &&
             notFound &&
-            razorpayCustomers.count
+            razorpayCustomers?.count
         );
 
         return razorpayCustomerOfInterest;
@@ -173,16 +189,15 @@ class RazorpayProviderService extends PaymentService {
 
     async createCustomer(customer) {
         try {
-            let createCustomerQueryParams = {
+            const createCustomerQueryParams = {
                 fail_existing: 0,
                 email: "startup@medusa.com"
             };
             let razorpayCustomer = undefined;
             let razorpayCustomerUpdated = undefined;
-            let fullname =
+            const fullname =
                 (customer.first_name ?? "") + " " + (customer.last_name ?? "");
-            let customerName = customer.name ?? fullname;
-            let notes = {};
+            const customerName = customer.name ?? fullname;
             if (
                 customerName?.length >
                     RazorpayProviderService.RAZORPAY_NAME_LENGTH_LIMIT ||
@@ -227,7 +242,7 @@ class RazorpayProviderService extends PaymentService {
 
             return razorpayCustomerUpdated ?? razorpayCustomer;
         } catch (error) {
-            throw error;
+            this.handleError(error);
         }
     }
     /**
@@ -237,10 +252,10 @@ class RazorpayProviderService extends PaymentService {
      * @return {Promise<object>} Razorpay customer
      */
     async updateCustomer(razorpayCustomerId, customer) {
-        let updateCustomerQueryParams = {};
-        let fullname =
+        const updateCustomerQueryParams = {};
+        const fullname =
             (customer.first_name ?? "") + " " + (customer.last_name ?? "");
-        let customerName = customer.name ?? fullname;
+        const customerName = customer.name ?? fullname;
         delete customer.first_name;
         delete customer.last_name;
         Object.assign(updateCustomerQueryParams, customer);
@@ -261,7 +276,7 @@ class RazorpayProviderService extends PaymentService {
             );
             return razorpayUpdateCustomer;
         } catch (error) {
-            throw error;
+            this.handleError(error);
         }
     }
     /**
@@ -271,8 +286,7 @@ class RazorpayProviderService extends PaymentService {
      * @return {object} Razorpay order intent
      */
     async createOrder(cart) {
-        const { customer_id, region_id, email, order_number, display_id } =
-            cart;
+        const { customer_id, region_id, email, display_id } = cart;
         const { currency_code } = await this.regionService_.retrieve(region_id);
 
         const amount = await this.totalsService_.getTotal(cart);
@@ -337,20 +351,20 @@ class RazorpayProviderService extends PaymentService {
         try {
             return this.razorpay_.orders.fetch(sessionData.id);
         } catch (error) {
-            throw error;
+            this.handleError(error);
         }
     }
 
     /**
      * Gets a Razorpay order intent and returns it.
-     * @param {object} data - the data of the payment to retrieve
+     * @param {object} sessionData  the data of the payment to retrieve
      * @return {Promise<object>} Razorpay order
      */
     async getPaymentData(sessionData) {
         try {
             return this.razorpay_.orders.fetch(sessionData.data.id);
         } catch (error) {
-            throw error;
+            this.handleError(error);
         }
     }
 
@@ -367,7 +381,7 @@ class RazorpayProviderService extends PaymentService {
         try {
             return { data: sessionData.data, status: stat };
         } catch (error) {
-            throw error;
+            this.handleError(error);
         }
     }
 
@@ -391,14 +405,14 @@ class RazorpayProviderService extends PaymentService {
 
             return result;
         } catch (error) {
-            throw error;
+            this.handleError(error);
         }
     }
 
     /**
      * Updates Razorpay order.
      * @param {object} sessionData - payment session data.
-     * @param {object} update - object to update intent with
+     * @param {object} cart - object to update intent with
      * @return {object} Razorpay order
      */
     async updatePayment(sessionData, cart) {
@@ -419,14 +433,14 @@ class RazorpayProviderService extends PaymentService {
       }
     */
         } catch (error) {
-            throw error;
+            this.handleError(error);
         }
     }
 
     /* Razorpay doesn't support cancelling/deleting orders or payments
-    *  https://docs.medusajs.com/modules/carts-and-checkout/backend/add-payment-provider#deletepayment
-    */
-    async deletePayment(payment) {
+     *  https://docs.medusajs.com/modules/carts-and-checkout/backend/add-payment-provider#deletepayment
+     */
+    async deletePayment() {
         return;
     }
 
@@ -437,12 +451,14 @@ class RazorpayProviderService extends PaymentService {
      * @param {string} customerId - id of new Razorpay customer
      * @return {object} Razorpay order
      */
-    async updatePaymentIntentCustomer(order_id, customerId) {
+    async updatePaymentIntentCustomer(order_id) {
         try {
-            order_of_interest = this.razorpay_.orders.fetch(order_id);
+            const order_of_interest = await this.razorpay_.orders.fetch(
+                order_id
+            );
             return order_of_interest;
         } catch (error) {
-            throw error;
+            this.handleError(error);
         }
     }
 
@@ -464,8 +480,9 @@ class RazorpayProviderService extends PaymentService {
                     razorpay_order_id,
                     razorpay_signature
                 )
-            )
+            ) {
                 return;
+            }
             const paymentIntent = await this.razorpay_.payments.fetch(
                 razorpay_payment_id
             );
@@ -484,7 +501,7 @@ class RazorpayProviderService extends PaymentService {
                     return error.payment_intent;
                 }
             }
-            throw error;
+            this.handleError(error);
         }
     }
 
@@ -492,6 +509,7 @@ class RazorpayProviderService extends PaymentService {
      * Refunds payment for Razorpay order.
      * @param {object} paymentData - payment method data from cart
      * @param {number} amountToRefund - amount to refund
+     * @param {string} speed - how quickly to issue the refund
      * @return {string} refunded order
      */
     async refundPayment(paymentData, amountToRefund, speed = "optimum") {
@@ -506,10 +524,11 @@ class RazorpayProviderService extends PaymentService {
                 razorpay_order_id,
                 razorpay_signature
             )
-        )
+        ) {
             return;
+        }
         try {
-            let paymentMade = await this.razorpay_.payments.fetch(
+            const paymentMade = await this.razorpay_.payments.fetch(
                 razorpay_payment_id
             );
             if (
@@ -526,9 +545,11 @@ class RazorpayProviderService extends PaymentService {
                     }
                 );
                 return refundResult;
-            } else return;
+            } else {
+                return;
+            }
         } catch (error) {
-            throw error;
+            this.handleError(error);
         }
     }
 
@@ -539,8 +560,8 @@ class RazorpayProviderService extends PaymentService {
      * razorpay doesn't support cancelled orders once created,
      * the status of the, it merely returns the current order.
      */
-    async cancelPayment(payment) {
-        const { id } = payment.data;
+    async cancelPayment(paymentData) {
+        const { id } = paymentData.data;
         try {
             return await this.razorpay_.orders.fetch(id);
         } catch (error) {
@@ -548,7 +569,7 @@ class RazorpayProviderService extends PaymentService {
                 return error.payment_intent;
             }
 
-            throw error;
+            this.handleError(error);
         }
     }
 
@@ -565,6 +586,10 @@ class RazorpayProviderService extends PaymentService {
             signature,
             this.options_.webhook_secret
         );
+    }
+
+    handleError(error) {
+        this.logger.error(error.message);
     }
 }
 
