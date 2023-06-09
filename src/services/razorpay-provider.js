@@ -496,7 +496,7 @@ class RazorpayProviderService extends PaymentService {
      */
     async refundPayment(paymentData, amountToRefund, speed = "optimum") {
         const orderInformation = await this.razorpay_.orders.fetch(
-            paymentData.data.order_id
+            paymentData.data.id
         );
         const { razorpay_payment_id, razorpay_order_id, razorpay_signature } =
             orderInformation.notes;
@@ -522,7 +522,7 @@ class RazorpayProviderService extends PaymentService {
                         amount: Math.round(amountToRefund),
                         // id: razorpay_payment_id,
                         speed: speed,
-                        receipt: paymentData.data.order_id
+                        receipt: paymentData.data.id
                     }
                 );
                 return refundResult;
