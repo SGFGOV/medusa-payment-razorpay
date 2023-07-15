@@ -322,7 +322,7 @@ describe("RazorpayProviderService", () => {
             result = await razorpayProviderService.refundPayment(
                 {
                     data: {
-                        order_id: "order_JFapRWBCWCR3bx"
+                        id: "order_JFapRWBCWCR3bx"
                     }
                 },
                 1000,
