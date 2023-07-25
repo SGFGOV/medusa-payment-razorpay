@@ -11,20 +11,22 @@ export const PaymentIntentDataByStatus = {
     id: "processing",
     status: "processing",
   },
-  REQUIRES_ACTION: {
-    id: "requires_action",
-    status: "requires_action",
+  CREATED: {
+    id: "created",
+    status: "created",
   },
-  CANCELED: {
-    id: "canceled",
-    status: "canceled",
+
+  FAILED: {
+    id: "failed",
+    status: "failed",
   },
+
   REQUIRES_CAPTURE: {
-    id: "requires_capture",
-    status: "requires_capture",
+    id: "authorized",
+    status: "authorized",
   },
   SUCCEEDED: {
-    id: "succeeded",
-    status: "succeeded",
+    id: "authorized",
+    status: "authorized",
   },
-}
+};

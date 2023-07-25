@@ -14,7 +14,7 @@ export const initiatePaymentContextWithExistingCustomer = {
   currency_code: "usd",
   amount: 1000,
   resource_id: "test",
-  customer: {},
+  customer: { last_name: "test", first_name: "customer" },
   context: {},
   paymentSessionData: {},
 };
@@ -25,6 +25,8 @@ export const initiatePaymentContextWithExistingCustomerRazorpayId = {
   amount: 1000,
   resource_id: "test",
   customer: {
+    last_name: "test",
+    first_name: "customer",
     metadata: {
       razorpay_id: "test",
     },
@@ -38,7 +40,7 @@ export const initiatePaymentContextWithWrongEmail = {
   currency_code: "usd",
   amount: 1000,
   resource_id: "test",
-  customer: {},
+  customer: { last_name: "test", first_name: "customer" },
   context: {},
   paymentSessionData: {},
 };
@@ -48,7 +50,7 @@ export const initiatePaymentContextWithFailIntentCreation = {
   currency_code: "usd",
   amount: 1000,
   resource_id: "test",
-  customer: {},
+  customer: { last_name: "test", first_name: "customer" },
   context: {
     payment_description: "fail",
   },

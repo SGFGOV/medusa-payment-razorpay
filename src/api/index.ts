@@ -1,10 +1,10 @@
-import { Router } from "express"
-import hooks from "./hooks"
+import { Router } from "express";
+import hooks from "./hooks";
 
 export default (container) => {
-  const app = Router()
+  const app = Router();
 
-  hooks(app)
+  hooks(app);
 
-  return app
-}
+  return app;
+};

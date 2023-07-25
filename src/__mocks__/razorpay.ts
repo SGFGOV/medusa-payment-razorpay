@@ -9,8 +9,41 @@ export const PARTIALLY_FAIL_INTENT_ID = "partially_unknown";
 export const FAIL_INTENT_ID = "unknown";
 
 export const RazorpayMock = {
-  paymentIntents: {
-    retrieve: jest.fn().mockImplementation(async (paymentId) => {
+  orders: {
+    fetch: jest.fn().mockImplementation(async (orderId) => {
+      if (orderId === FAIL_INTENT_ID) {
+        throw new Error("Error");
+      }
+
+      return (
+        Object.values(PaymentIntentDataByStatus).find((value) => {
+          return value.id === orderId;
+        }) ?? {}
+      );
+    }),
+    edit: jest.fn().mockImplementation(async (orderId, updateData) => {
+      if (orderId === FAIL_INTENT_ID) {
+        throw new Error("Error");
+      }
+
+      const data =
+        Object.values(PaymentIntentDataByStatus).find((value) => {
+          return value.id === orderId;
+        }) ?? {};
+
+      return { ...data, ...updateData };
+    }),
+    create: jest.fn().mockImplementation(async (data) => {
+      if (data.description === "fail") {
+        throw new Error("Error");
+      }
+
+      return data;
+    }),
+  },
+
+  payments: {
+    fetch: jest.fn().mockImplementation(async (paymentId) => {
       if (paymentId === FAIL_INTENT_ID) {
         throw new Error("Error");
       }
@@ -21,7 +54,7 @@ export const RazorpayMock = {
         }) ?? {}
       );
     }),
-    update: jest.fn().mockImplementation(async (paymentId, updateData) => {
+    edit: jest.fn().mockImplementation(async (paymentId, updateData) => {
       if (paymentId === FAIL_INTENT_ID) {
         throw new Error("Error");
       }
@@ -80,9 +113,7 @@ export const RazorpayMock = {
 
       return { id: paymentId };
     }),
-  },
-  refunds: {
-    create: jest
+    refund: jest
       .fn()
       .mockImplementation(async ({ payment_intent: paymentId }) => {
         if (paymentId === FAIL_INTENT_ID) {
@@ -91,6 +122,19 @@ export const RazorpayMock = {
 
         return { id: paymentId };
       }),
+  },
+  refunds: {
+    fetch: jest.fn().mockImplementation(async (paymentId) => {
+      if (paymentId === FAIL_INTENT_ID) {
+        throw new Error("Error");
+      }
+
+      return (
+        Object.values(PaymentIntentDataByStatus).find((value) => {
+          return value.id === paymentId;
+        }) ?? {}
+      );
+    }),
   },
   customers: {
     create: jest.fn().mockImplementation(async (data) => {

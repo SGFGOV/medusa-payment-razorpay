@@ -16,6 +16,7 @@ import {
 } from "../types";
 import { MedusaError } from "@medusajs/utils";
 import { Orders } from "razorpay/dist/types/orders";
+import crypto from "crypto";
 
 abstract class RazorpayBase extends AbstractPaymentProcessor {
   static identifier = "";
@@ -65,6 +66,19 @@ abstract class RazorpayBase extends AbstractPaymentProcessor {
     return options;
   }
 
+  _validateSignature(
+    razorpay_payment_id: string,
+    razorpay_order_id: string,
+    razorpay_signature: string
+  ): boolean {
+    const body = razorpay_order_id + "|" + razorpay_payment_id;
+    const expectedSignature = crypto
+      .createHmac("sha256", this.options_.key_secret as string)
+      .update(body.toString())
+      .digest("hex");
+    return expectedSignature === razorpay_signature;
+  }
+
   async getPaymentStatus(
     paymentSessionData: Record<string, unknown>
   ): Promise<PaymentSessionStatus> {
@@ -76,11 +90,12 @@ abstract class RazorpayBase extends AbstractPaymentProcessor {
       case "created":
         return PaymentSessionStatus.REQUIRES_MORE;
       case "failed":
-        return PaymentSessionStatus.CANCELED;
+        return PaymentSessionStatus.ERROR;
       case "authorized":
-        return PaymentSessionStatus.PENDING;
       case "captured":
+      case "refunded":
         return PaymentSessionStatus.AUTHORIZED;
+
       default:
         return PaymentSessionStatus.PENDING;
     }

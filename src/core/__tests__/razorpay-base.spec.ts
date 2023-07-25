@@ -68,6 +68,11 @@ describe("RazorpayTest", () => {
       let status: PaymentSessionStatus;
 
       status = await razorpayTest.getPaymentStatus({
+        id: PaymentIntentDataByStatus.CREATED.id,
+      });
+      expect(status).toBe(PaymentSessionStatus.REQUIRES_MORE);
+
+      status = await razorpayTest.getPaymentStatus({
         id: PaymentIntentDataByStatus.REQUIRES_PAYMENT_METHOD.id,
       });
       expect(status).toBe(PaymentSessionStatus.PENDING);
@@ -83,14 +88,9 @@ describe("RazorpayTest", () => {
       expect(status).toBe(PaymentSessionStatus.PENDING);
 
       status = await razorpayTest.getPaymentStatus({
-        id: PaymentIntentDataByStatus.REQUIRES_ACTION.id,
+        id: PaymentIntentDataByStatus.FAILED.id,
       });
-      expect(status).toBe(PaymentSessionStatus.REQUIRES_MORE);
-
-      status = await razorpayTest.getPaymentStatus({
-        id: PaymentIntentDataByStatus.CANCELED.id,
-      });
-      expect(status).toBe(PaymentSessionStatus.CANCELED);
+      expect(status).toBe(PaymentSessionStatus.ERROR);
 
       status = await razorpayTest.getPaymentStatus({
         id: PaymentIntentDataByStatus.REQUIRES_CAPTURE.id,
@@ -114,7 +114,11 @@ describe("RazorpayTest", () => {
 
     beforeAll(async () => {
       const scopedContainer = { ...container };
-      razorpayTest = new RazorpayTest(scopedContainer, { api_key: "test" });
+      razorpayTest = new RazorpayTest(scopedContainer, {
+        key_id: "test",
+        key_secret: "test",
+        razorpay_account: "test",
+      });
     });
 
     beforeEach(() => {
@@ -129,10 +133,11 @@ describe("RazorpayTest", () => {
       expect(RazorpayMock.customers.create).toHaveBeenCalled();
       expect(RazorpayMock.customers.create).toHaveBeenCalledWith({
         email: initiatePaymentContextWithExistingCustomer.email,
+        name: "test, customer",
       });
 
-      expect(RazorpayMock.paymentIntents.create).toHaveBeenCalled();
-      expect(RazorpayMock.paymentIntents.create).toHaveBeenCalledWith(
+      expect(RazorpayMock.orders.create).toHaveBeenCalled();
+      expect(RazorpayMock.orders.create).toHaveBeenCalledWith(
         expect.objectContaining({
           description: undefined,
           amount: initiatePaymentContextWithExistingCustomer.amount,
@@ -163,8 +168,8 @@ describe("RazorpayTest", () => {
 
       expect(RazorpayMock.customers.create).not.toHaveBeenCalled();
 
-      expect(RazorpayMock.paymentIntents.create).toHaveBeenCalled();
-      expect(RazorpayMock.paymentIntents.create).toHaveBeenCalledWith(
+      expect(RazorpayMock.orders.create).toHaveBeenCalled();
+      expect(RazorpayMock.orders.create).toHaveBeenCalledWith(
         expect.objectContaining({
           description: undefined,
           amount: initiatePaymentContextWithExistingCustomer.amount,
@@ -194,7 +199,7 @@ describe("RazorpayTest", () => {
         email: initiatePaymentContextWithWrongEmail.email,
       });
 
-      expect(RazorpayMock.paymentIntents.create).not.toHaveBeenCalled();
+      expect(RazorpayMock.orders.create).not.toHaveBeenCalled();
 
       expect(result).toEqual({
         error:
@@ -214,8 +219,8 @@ describe("RazorpayTest", () => {
         email: initiatePaymentContextWithFailIntentCreation.email,
       });
 
-      expect(RazorpayMock.paymentIntents.create).toHaveBeenCalled();
-      expect(RazorpayMock.paymentIntents.create).toHaveBeenCalledWith(
+      expect(RazorpayMock.orders.create).toHaveBeenCalled();
+      expect(RazorpayMock.orders.create).toHaveBeenCalledWith(
         expect.objectContaining({
           description:
             initiatePaymentContextWithFailIntentCreation.context
@@ -367,7 +372,8 @@ describe("RazorpayTest", () => {
       const result = await razorpayTest.cancelPayment(deletePaymentSuccessData);
 
       expect(result).toEqual({
-        id: PaymentIntentDataByStatus.SUCCEEDED.id,
+        code: "payment_intent_operation_unsupported",
+        error: "Unable to cancel as razorpay doesn't support cancellation",
       });
     });
 
@@ -377,8 +383,8 @@ describe("RazorpayTest", () => {
       );
 
       expect(result).toEqual({
-        id: PARTIALLY_FAIL_INTENT_ID,
-        status: ErrorIntentStatus.CANCELED,
+        code: "payment_intent_operation_unsupported",
+        error: "Unable to cancel as razorpay doesn't support cancellation",
       });
     });
 
@@ -386,9 +392,8 @@ describe("RazorpayTest", () => {
       const result = await razorpayTest.cancelPayment(deletePaymentFailData);
 
       expect(result).toEqual({
-        error: "An error occurred in cancelPayment",
-        code: "",
-        detail: "Error",
+        code: "payment_intent_operation_unsupported",
+        error: "Unable to cancel as razorpay doesn't support cancellation",
       });
     });
   });
@@ -489,8 +494,8 @@ describe("RazorpayTest", () => {
         email: updatePaymentContextWithExistingCustomer.email,
       });
 
-      expect(RazorpayMock.paymentIntents.create).toHaveBeenCalled();
-      expect(RazorpayMock.paymentIntents.create).toHaveBeenCalledWith(
+      expect(RazorpayMock.orders.create).toHaveBeenCalled();
+      expect(RazorpayMock.orders.create).toHaveBeenCalledWith(
         expect.objectContaining({
           description: undefined,
           amount: updatePaymentContextWithExistingCustomer.amount,
@@ -524,7 +529,7 @@ describe("RazorpayTest", () => {
         email: updatePaymentContextWithWrongEmail.email,
       });
 
-      expect(RazorpayMock.paymentIntents.create).not.toHaveBeenCalled();
+      expect(RazorpayMock.orders.create).not.toHaveBeenCalled();
 
       expect(result).toEqual({
         error:
@@ -542,7 +547,7 @@ describe("RazorpayTest", () => {
         updatePaymentContextWithExistingCustomerRazorpayId
       );
 
-      expect(RazorpayMock.paymentIntents.update).not.toHaveBeenCalled();
+      expect(RazorpayMock.orders.edit).not.toHaveBeenCalled();
 
       expect(result).not.toBeDefined();
     });
@@ -552,8 +557,8 @@ describe("RazorpayTest", () => {
         updatePaymentContextWithDifferentAmount
       );
 
-      expect(RazorpayMock.paymentIntents.update).toHaveBeenCalled();
-      expect(RazorpayMock.paymentIntents.update).toHaveBeenCalledWith(
+      expect(RazorpayMock.orders.edit).toHaveBeenCalled();
+      expect(RazorpayMock.orders.edit).toHaveBeenCalledWith(
         updatePaymentContextWithDifferentAmount.paymentSessionData.id,
         {
           amount: updatePaymentContextWithDifferentAmount.amount,
@@ -572,8 +577,8 @@ describe("RazorpayTest", () => {
         updatePaymentContextFailWithDifferentAmount
       );
 
-      expect(RazorpayMock.paymentIntents.update).toHaveBeenCalled();
-      expect(RazorpayMock.paymentIntents.update).toHaveBeenCalledWith(
+      expect(RazorpayMock.orders.edit).toHaveBeenCalled();
+      expect(RazorpayMock.orders.edit).toHaveBeenCalledWith(
         updatePaymentContextFailWithDifferentAmount.paymentSessionData.id,
         {
           amount: updatePaymentContextFailWithDifferentAmount.amount,
@@ -606,8 +611,8 @@ describe("RazorpayTest", () => {
         { ...updatePaymentDataWithoutAmountData, sessionId: undefined }
       );
 
-      expect(RazorpayMock.paymentIntents.update).toHaveBeenCalled();
-      expect(RazorpayMock.paymentIntents.update).toHaveBeenCalledWith(
+      expect(RazorpayMock.orders.edit).toHaveBeenCalled();
+      expect(RazorpayMock.orders.edit).toHaveBeenCalledWith(
         updatePaymentDataWithoutAmountData.sessionId,
         {
           customProp: updatePaymentDataWithoutAmountData.customProp,
@@ -627,7 +632,7 @@ describe("RazorpayTest", () => {
         { ...updatePaymentDataWithAmountData, sessionId: undefined }
       );
 
-      expect(RazorpayMock.paymentIntents.update).not.toHaveBeenCalled();
+      expect(RazorpayMock.orders.edit).not.toHaveBeenCalled();
 
       expect(result).toEqual({
         error: "An error occurred in updatePaymentData",
