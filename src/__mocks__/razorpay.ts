@@ -1,12 +1,20 @@
 import { PaymentIntentDataByStatus } from "../__fixtures__/data";
 import Razorpay from "razorpay";
 import { ErrorCodes, ErrorIntentStatus } from "../types";
-
+import { jest } from "@jest/globals";
 export const WRONG_CUSTOMER_EMAIL = "wrong@test.fr";
 export const EXISTING_CUSTOMER_EMAIL = "right@test.fr";
-export const RAZORPAY_ID = "test";
+export const RAZORPAY_ID = isMocksEnabled() ? "test" : process.env.RAZORPAY_ID;
 export const PARTIALLY_FAIL_INTENT_ID = "partially_unknown";
 export const FAIL_INTENT_ID = "unknown";
+import dotenv from "dotenv";
+dotenv.config();
+
+const mockEnabled = process.env.TEST_MOCK_ENABLED == "true" ? true : false;
+
+export function isMocksEnabled(): boolean {
+  return mockEnabled;
+}
 
 export const RazorpayMock = {
   orders: {
@@ -21,7 +29,7 @@ export const RazorpayMock = {
         }) ?? {}
       );
     }),
-    edit: jest.fn().mockImplementation(async (orderId, updateData) => {
+    edit: jest.fn().mockImplementation(async (orderId, updateData: any) => {
       if (orderId === FAIL_INTENT_ID) {
         throw new Error("Error");
       }
@@ -33,7 +41,7 @@ export const RazorpayMock = {
 
       return { ...data, ...updateData };
     }),
-    create: jest.fn().mockImplementation(async (data) => {
+    create: jest.fn().mockImplementation(async (data: any) => {
       if (data.description === "fail") {
         throw new Error("Error");
       }
@@ -54,7 +62,7 @@ export const RazorpayMock = {
         }) ?? {}
       );
     }),
-    edit: jest.fn().mockImplementation(async (paymentId, updateData) => {
+    edit: jest.fn().mockImplementation(async (paymentId, updateData: any) => {
       if (paymentId === FAIL_INTENT_ID) {
         throw new Error("Error");
       }
@@ -66,7 +74,7 @@ export const RazorpayMock = {
 
       return { ...data, ...updateData };
     }),
-    create: jest.fn().mockImplementation(async (data) => {
+    create: jest.fn().mockImplementation(async (data: any) => {
       if (data.description === "fail") {
         throw new Error("Error");
       }
@@ -115,7 +123,7 @@ export const RazorpayMock = {
     }),
     refund: jest
       .fn()
-      .mockImplementation(async ({ payment_intent: paymentId }) => {
+      .mockImplementation(async ({ payment_intent: paymentId }: any) => {
         if (paymentId === FAIL_INTENT_ID) {
           throw new Error("Error");
         }
@@ -137,7 +145,7 @@ export const RazorpayMock = {
     }),
   },
   customers: {
-    create: jest.fn().mockImplementation(async (data) => {
+    create: jest.fn().mockImplementation(async (data: any) => {
       if (data.email === EXISTING_CUSTOMER_EMAIL) {
         return { id: RAZORPAY_ID, ...data };
       }
@@ -147,6 +155,6 @@ export const RazorpayMock = {
   },
 };
 
-const razorpay = jest.fn(() => RazorpayMock);
+const razorpay = isMocksEnabled() ? jest.fn(() => RazorpayMock) : Razorpay;
 
 export default razorpay;

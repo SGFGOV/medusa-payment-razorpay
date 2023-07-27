@@ -4,6 +4,7 @@ import {
   PARTIALLY_FAIL_INTENT_ID,
   RAZORPAY_ID,
   WRONG_CUSTOMER_EMAIL,
+  isMocksEnabled,
 } from "../../__mocks__/razorpay";
 import { PaymentIntentDataByStatus } from "../../__fixtures__/data";
 
@@ -11,7 +12,7 @@ import { PaymentIntentDataByStatus } from "../../__fixtures__/data";
 
 export const initiatePaymentContextWithExistingCustomer = {
   email: EXISTING_CUSTOMER_EMAIL,
-  currency_code: "usd",
+  currency_code: "inr",
   amount: 1000,
   resource_id: "test",
   customer: { last_name: "test", first_name: "customer" },
@@ -21,14 +22,14 @@ export const initiatePaymentContextWithExistingCustomer = {
 
 export const initiatePaymentContextWithExistingCustomerRazorpayId = {
   email: EXISTING_CUSTOMER_EMAIL,
-  currency_code: "usd",
+  currency_code: "inr",
   amount: 1000,
   resource_id: "test",
   customer: {
     last_name: "test",
     first_name: "customer",
     metadata: {
-      razorpay_id: "test",
+      razorpay_id: isMocksEnabled() ? "test" : undefined,
     },
   },
   context: {},
@@ -37,7 +38,7 @@ export const initiatePaymentContextWithExistingCustomerRazorpayId = {
 
 export const initiatePaymentContextWithWrongEmail = {
   email: WRONG_CUSTOMER_EMAIL,
-  currency_code: "usd",
+  currency_code: "inr",
   amount: 1000,
   resource_id: "test",
   customer: { last_name: "test", first_name: "customer" },
@@ -47,7 +48,7 @@ export const initiatePaymentContextWithWrongEmail = {
 
 export const initiatePaymentContextWithFailIntentCreation = {
   email: EXISTING_CUSTOMER_EMAIL,
-  currency_code: "usd",
+  currency_code: "inr",
   amount: 1000,
   resource_id: "test",
   customer: { last_name: "test", first_name: "customer" },
@@ -135,7 +136,7 @@ export const retrievePaymentFailData = {
 
 export const updatePaymentContextWithExistingCustomer = {
   email: EXISTING_CUSTOMER_EMAIL,
-  currency_code: "usd",
+  currency_code: "inr",
   amount: 1000,
   resource_id: "test",
   customer: {},
@@ -148,7 +149,7 @@ export const updatePaymentContextWithExistingCustomer = {
 
 export const updatePaymentContextWithExistingCustomerRazorpayId = {
   email: EXISTING_CUSTOMER_EMAIL,
-  currency_code: "usd",
+  currency_code: "inr",
   amount: 1000,
   resource_id: "test",
   customer: {
@@ -165,7 +166,7 @@ export const updatePaymentContextWithExistingCustomerRazorpayId = {
 
 export const updatePaymentContextWithWrongEmail = {
   email: WRONG_CUSTOMER_EMAIL,
-  currency_code: "usd",
+  currency_code: "inr",
   amount: 1000,
   resource_id: "test",
   customer: {},
@@ -178,7 +179,7 @@ export const updatePaymentContextWithWrongEmail = {
 
 export const updatePaymentContextWithDifferentAmount = {
   email: WRONG_CUSTOMER_EMAIL,
-  currency_code: "usd",
+  currency_code: "inr",
   amount: 2000,
   resource_id: "test",
   customer: {
@@ -196,7 +197,7 @@ export const updatePaymentContextWithDifferentAmount = {
 
 export const updatePaymentContextFailWithDifferentAmount = {
   email: WRONG_CUSTOMER_EMAIL,
-  currency_code: "usd",
+  currency_code: "inr",
   amount: 2000,
   resource_id: "test",
   customer: {
@@ -223,5 +224,10 @@ export const updatePaymentDataWithAmountData = {
 
 export const updatePaymentDataWithoutAmountData = {
   sessionId: RAZORPAY_ID,
-  customProp: "test",
+  
+  /** only notes can be updated */
+  notes: {
+    customProp: "test",
+    test: "test-string",
+  },
 };
