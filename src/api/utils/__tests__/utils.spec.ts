@@ -41,36 +41,36 @@ describe("Utils", () => {
   describe("buildError", () => {
     it("should return the appropriate error message", () => {
       let event = "test_event";
-      let error = {
-        code: PostgresError.SERIALIZATION_FAILURE,
-        detail: "some details",
-      } as any;
+      let error: Error = {
+        name: PostgresError.SERIALIZATION_FAILURE,
+        message: "some details",
+      };
 
       let message = buildError(event, error);
       expect(message).toBe(
-        `Razorpay webhook ${event} handle failed. This can happen when this webhook is triggered during a cart completion and can be ignored. This event should be retried automatically.${EOL}${error.detail}`
+        `Razorpay webhook ${event} handle failed. This can happen when this webhook is triggered during a cart completion and can be ignored. This event should be retried automatically.${EOL}${error.message}`
       );
 
       event = "test_event";
       error = {
-        code: "409",
-        detail: "some details",
+        name: "409",
+        message: "some details",
       } as any;
 
       message = buildError(event, error);
       expect(message).toBe(
-        `Razorpay webhook ${event} handle failed.${EOL}${error.detail}`
+        `Razorpay webhook ${event} handling failed${EOL}${error.message}`
       );
 
       event = "test_event";
       error = {
-        code: "",
-        detail: "some details",
+        name: "",
+        message: "some details",
       } as any;
 
       message = buildError(event, error);
       expect(message).toBe(
-        `Razorpay webhook ${event} handling failed${EOL}${error.detail}`
+        `Razorpay webhook ${event} handling failed${EOL}${error.message}`
       );
     });
   });

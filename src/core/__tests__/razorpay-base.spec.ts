@@ -138,7 +138,7 @@ describe("RazorpayTest", () => {
         const status = await razorpayTest.getPaymentStatus(
           (result as PaymentProcessorSessionResponse).session_data
         );
-        expect(status).toBe(PaymentSessionStatus.PENDING);
+        expect(status).toBe(PaymentSessionStatus.REQUIRES_MORE);
       });
     }
   });
@@ -314,7 +314,7 @@ describe("RazorpayTest", () => {
             },
         status: isMocksEnabled()
           ? PaymentSessionStatus.AUTHORIZED
-          : PaymentSessionStatus.PENDING,
+          : PaymentSessionStatus.REQUIRES_MORE,
       });
     });
   });
@@ -514,14 +514,17 @@ describe("RazorpayTest", () => {
 
     it("should retrieve", async () => {
       const result = await razorpayTest.retrievePayment(
-        isMocksEnabled() ? retrievePaymentSuccessData : testPaymentSession
+        isMocksEnabled()
+          ? retrievePaymentSuccessData
+          : testPaymentSession.session_data
       );
       if (isMocksEnabled()) {
         expect(result).toEqual({
           id: PaymentIntentDataByStatus.SUCCEEDED.id,
         });
       } else {
-        expect((result as any).id).toContain("order_");
+        expect((result as any).id).toBeDefined();
+        expect((result as any).id).toMatch("order_");
       }
     });
 
