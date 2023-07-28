@@ -275,13 +275,14 @@ abstract class RazorpayBase extends AbstractPaymentProcessor {
       );
       return paymentIntent;
     });
-    const payments = await Promise.all(result);
-    const res = payments.reduce(
-      (acc, curr) => ((acc[curr.id] = curr), acc),
-      {}
-    );
-    (paymentSessionData as unknown as Orders.RazorpayOrder).payments = res;
-
+    if (result) {
+      const payments = await Promise.all(result);
+      const res = payments.reduce(
+        (acc, curr) => ((acc[curr.id] = curr), acc),
+        {}
+      );
+      (paymentSessionData as unknown as Orders.RazorpayOrder).payments = res;
+    }
     return paymentSessionData;
   }
 

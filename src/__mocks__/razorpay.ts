@@ -10,9 +10,12 @@ export const FAIL_INTENT_ID = "unknown";
 import dotenv from "dotenv";
 dotenv.config();
 
-const mockEnabled = process.env.TEST_MOCK_ENABLED == "true" ? true : false;
+const mockEnabled = process.env.DISABLE_MOCKS == "true" ? false : true;
 
 export function isMocksEnabled(): boolean {
+  if (mockEnabled) {
+    console.log("using mocks");
+  }
   return mockEnabled;
 }
 

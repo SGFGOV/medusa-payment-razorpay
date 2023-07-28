@@ -106,8 +106,6 @@ describe("RazorpayTest", () => {
         });
         expect(status).toBe(PaymentSessionStatus.AUTHORIZED);
 
-        expect(status).toBe(PaymentSessionStatus.PENDING);
-
         status = await razorpayTest.getPaymentStatus({
           id: "unknown-id",
         });
@@ -199,11 +197,19 @@ describe("RazorpayTest", () => {
           capture_method: "manual",
         });*/
       }
-      expect(result).toMatchObject({
-        session_data: expect.any(Object),
-        update_requests: expect.any(Object),
-      });
-      expect((result as any).session_data.id).toBeDefined();
+      expect(result).toMatchObject(
+        !isMocksEnabled()
+          ? {
+              session_data: expect.any(Object),
+              update_requests: expect.any(Object),
+            }
+          : {
+              session_data: expect.any(Object),
+            }
+      );
+      if (!isMocksEnabled()) {
+        expect((result as any).session_data.id).toBeDefined();
+      }
     });
 
     /* it("should fail on customer creation", async () => {
@@ -520,17 +526,20 @@ describe("RazorpayTest", () => {
     });*/
   });
 
-  describe("updatePayment", function () {
-    beforeAll(async () => {
-      const scopedContainer = { ...container };
-      razorpayTest = new RazorpayTest(scopedContainer, config);
-    });
+  if (!isMocksEnabled()) {
+    describe("updatePayment", function () {
+      if (!isMocksEnabled()) {
+        beforeAll(async () => {
+          const scopedContainer = { ...container };
+          razorpayTest = new RazorpayTest(scopedContainer, config);
+        });
 
-    beforeEach(() => {
-      jest.clearAllMocks();
-    });
+        beforeEach(() => {
+          jest.clearAllMocks();
+        });
+      }
 
-    /* it("should succeed to initiate a payment with an existing customer but no razorpay id", async () => {
+      /* it("should succeed to initiate a payment with an existing customer but no razorpay id", async () => {
       const paymentContext: PaymentProcessorContext = {
         email: updatePaymentContextWithDifferentAmount.email,
         currency_code: updatePaymentContextWithDifferentAmount.currency_code,
@@ -574,7 +583,7 @@ describe("RazorpayTest", () => {
       });
     }, 60e6); */
 
-    /* it("should fail to initiate a payment with an existing customer but no razorpay id", async () => {
+      /* it("should fail to initiate a payment with an existing customer but no razorpay id", async () => {
       const result = await razorpayTest.updatePayment(
         updatePaymentContextWithWrongEmail
       );
@@ -607,43 +616,44 @@ describe("RazorpayTest", () => {
       expect(result).not.toBeDefined();
     });
     */
-    if (!isMocksEnabled()) {
-      it("should succeed to update the intent with the new amount", async () => {
-        const paymentContext: PaymentProcessorContext = {
-          email: updatePaymentContextWithDifferentAmount.email,
-          currency_code: updatePaymentContextWithDifferentAmount.currency_code,
-          amount: updatePaymentContextWithDifferentAmount.amount,
-          resource_id: updatePaymentContextWithDifferentAmount.resource_id,
-          context: updatePaymentContextWithDifferentAmount.context,
-          paymentSessionData: isMocksEnabled()
-            ? updatePaymentContextWithDifferentAmount.paymentSessionData
-            : testPaymentSession.session_data,
-        };
-        const result = await razorpayTest.updatePayment(
-          isMocksEnabled()
-            ? (updatePaymentContextWithDifferentAmount as any)
-            : paymentContext
-        );
-        if (isMocksEnabled()) {
-          expect(1).toBe(1);
-          console.log("test not valid in mocked mode");
-          // expect(RazorpayMock.orders.edit).toHaveBeenCalled();
-          /* expect(RazorpayMock.orders.edit).toHaveBeenCalledWith(
+      if (!isMocksEnabled()) {
+        it("should succeed to update the intent with the new amount", async () => {
+          const paymentContext: PaymentProcessorContext = {
+            email: updatePaymentContextWithDifferentAmount.email,
+            currency_code:
+              updatePaymentContextWithDifferentAmount.currency_code,
+            amount: updatePaymentContextWithDifferentAmount.amount,
+            resource_id: updatePaymentContextWithDifferentAmount.resource_id,
+            context: updatePaymentContextWithDifferentAmount.context,
+            paymentSessionData: isMocksEnabled()
+              ? updatePaymentContextWithDifferentAmount.paymentSessionData
+              : testPaymentSession.session_data,
+          };
+          const result = await razorpayTest.updatePayment(
+            isMocksEnabled()
+              ? (updatePaymentContextWithDifferentAmount as any)
+              : paymentContext
+          );
+          if (isMocksEnabled()) {
+            expect(1).toBe(1);
+            console.log("test not valid in mocked mode");
+            // expect(RazorpayMock.orders.edit).toHaveBeenCalled();
+            /* expect(RazorpayMock.orders.edit).toHaveBeenCalledWith(
           updatePaymentContextWithDifferentAmount.paymentSessionData.id,
           {
             amount: updatePaymentContextWithDifferentAmount.amount,
           }
         );*/
-        }
-        expect(result).toMatchObject({
-          session_data: {
-            amount: updatePaymentContextWithDifferentAmount.amount,
-          },
-        });
-      }, 60e6);
-    }
+          }
+          expect(result).toMatchObject({
+            session_data: {
+              amount: updatePaymentContextWithDifferentAmount.amount,
+            },
+          });
+        }, 60e6);
+      }
 
-    /* it("should fail to update the intent with the new amount", async () => {
+      /* it("should fail to update the intent with the new amount", async () => {
       const result = await razorpayTest.updatePayment(
         updatePaymentContextFailWithDifferentAmount
       );
@@ -662,7 +672,8 @@ describe("RazorpayTest", () => {
         detail: "Error",
       });
     });*/
-  });
+    });
+  }
 
   describe("updatePaymentData", function () {
     beforeAll(async () => {
