@@ -1,74 +1,210 @@
-# Stripe
+# MEDUSA-PAYMENT-RAZORPAY
 
-Receive payments on your Medusa commerce application using Stripe.
+[RAZORPAY](https://razorpay.comm) an immensely popular payment gateway with a host of features. 
+This plugin enables the razorpay payment interface on [medusa](https://medusajs.com) commerce stack
 
-[Stripe Plugin Documentation](https://docs.medusajs.com/plugins/payment/stripe) | [Medusa Website](https://medusajs.com/) | [Medusa Repository](https://github.com/medusajs/medusa)
+## Installation
 
-## Features
+Use the package manager npm to install medusa-payment-razorpay.
 
-- Authorize payments on orders from any sales channel.
-- Support for Bancontact, BLIK, giropay, iDEAL, and Przelewy24.
-- Capture payments from the admin dashboard.
-- View payment analytics through Stripe's dashboard.
-- Ready-integration with [Medusa's Next.js starter storefront](https://docs.medusajs.com/starters/nextjs-medusa-starter).
-- Support for Stripe Webhooks.
+```bash
+npm install medusa-payment-razorpay
+```
 
----
+## Usage
 
-## Prerequisites
 
-- [Medusa backend](https://docs.medusajs.com/development/backend/install)
-- [Stripe account](https://stripe.com/)
+Register for a razorpay account and generate the api keys
+In your environment file (.env) you need to define 
+```
+RAZORPAY_ID=<your api key>
+RAZORPAY_SECRET=<your api key secret>
+RAZORPAY_ACCOUNT=<your razorpay account number/merchant id>
+```
+You need to add the plugin into your medusa-config.js as shown below
 
----
+```
+const plugins = [
+  ...,
+  {
+    resolve:`medusa-payment-razorpay`,
+    options:{
+         key_id: process.env.RAZORPAY_ID,
+                key_secret: process.env.RAZORPAY_SECRET,
+                razorpay_account: process.env.RAZORPAY_ACCOUNT,                
+                automatic_expiry_period: 30, /*any value between 12minuts and 30 days expressed in minutes*/
+                manual_expiry_period: 20,
+                refund_speed: "normal",
+                webhook_secret: process.env.RAZORPAY_SECRET,
+    }
+  },
+  ...]
+```
+## Client side configuration
 
-## How to Install
+You can refer this to see how the client side is implemented for the gatsby medusa starter
+SGFGOV:feat/medusa-payment-razorpay (https://github.com/SGFGOV/gatsby-starter-medusa/tree/feat/medusa-payment-razorpay)
 
-1\. Run the following command in the directory of the Medusa backend:
+On the client you need to specify on the api key not the api secrets :)
 
-  ```bash
-  npm install medusa-payment-stripe
-  ```
+For the nextjs start you need to  make the following changes 
 
-2\. Set the following environment variables in `.env`:
+1. Install package to your next starter. This just makes it easier, importing all the scripts implicitly
+```
+yarn add react-razorpay
 
-  ```bash
-  STRIPE_API_KEY=sk_...
-  # only necessary for production
-  STRIPE_WEBHOOK_SECRET=whsec_...
-  ```
+```
+2. Add updatePaymentSession into your checkOutContext - <next-starter>/src/lib/context/checkout-context.tsx
+```
+const {
+    mutate: updatePaymentSessionMutation,
+    isLoading: updatingPaymentSession,
+  } = useUpdatePaymentSession(cart?.id!)
 
-3\. In `medusa-config.js` add the following at the end of the `plugins` array:
 
-  ```js
-  const plugins = [
-    // ...
-    {
-      resolve: `medusa-payment-stripe`,
-      options: {
-        api_key: process.env.STRIPE_API_KEY,
-        webhook_secret: process.env.STRIPE_WEBHOOK_SECRET,
-      },
+const updatePaymentSession = (providerId: string,data:StorePostCartsCartPaymentSessionUpdateReq) => {
+    if (cart) {
+      updatePaymentSessionMutation(
+        {
+          provider_id: providerId,
+          ...data
+        },
+        {
+          onSuccess: ({ cart }) => {
+            setCart(cart)
+          },
+        }
+      )
+    }
+  }
+// add that to the return context
+return (
+    <FormProvider {...methods}>
+      <CheckoutContext.Provider
+        value={{
+          cart,
+          shippingMethods,
+          isLoading,
+          readyToComplete,
+          sameAsBilling,
+          editAddresses,
+          initPayment,
+          setAddresses,
+          setSavedAddress,
+          setShippingOption,
+          setPaymentSession,
+          onPaymentCompleted,
+          updatePaymentSession,
+        }}
+      >
+        <Wrapper paymentSession={cart?.payment_session}>{children}</Wrapper>
+      </CheckoutContext.Provider>
+    </FormProvider>
+  )
+```
+3. Create a button for Razorpay <next-starter>/src/modules/checkout/components/payment-button/index.tsx
+
+like below
+
+````
+const RazorpayPaymentButton = ({
+  session,
+  notReady,
+}: {
+  session: PaymentSession
+  notReady: boolean
+}) => {
+  const [submitting, setSubmitting] = useState(false)
+  const [errorMessage, setErrorMessage] = useState<string | undefined>(
+    undefined
+  )
+  const Razorpay = useRazorpay();
+  
+
+  const { cart } = useCart()
+  const { onPaymentCompleted,updatePaymentSession } = useCheckout()
+  const orderData = session.data as Record<string,string>
+  const handlePayment = useCallback(() => {
+
+    const options: RazorpayOptions = {
+      key: RAZORPAY_API,
+      amount: session.amount.toString(),
+      currency: orderData.currency.toLocaleUpperCase(),
+      name: process.env.COMPANY_NAME??"SGF",
+      description: `Order number ${orderData.id}`,
+      //image: "https://example.com/your_logo",
+      order_id: orderData.id,
+     
+      "prefill":{
+        "name":cart?.billing_address.first_name + " "+ cart?.billing_address.last_name,
+        "email":cart?.email,
+        "contact":(cart?.shipping_address?.phone)??undefined
     },
-  ]
-  ```
+    "notes": {
+      "address": cart?.billing_address,
+      "order_notes":session.data.notes
+    },
+    "theme": {
+      "color": "1234"
+    },
+    "modal": {  
+                "ondismiss": (()=>{ 
+                            console.log("dismissed payment");
+                            setSubmitting(false) 
+                          return false})  ()
 
----
+                      },
+    "handler": async (response) => {console.log(response);
+      
+      if (!response) {
+        const error = "razorpay unsuccessful"
+        console.log(error)
+        setErrorMessage(error);
+        setSubmitting(false);
+        return;
+      }
+      else{
+        updatePaymentSession("razorpay",response as unknown as StorePostCartsCartPaymentSessionUpdateReq)
+        onPaymentCompleted()
+      }
+      return;
+      
+   },
+    };
 
-## Test the Plugin
+    const razorpay = new Razorpay(options);
+    razorpay.on('payment.submit', function (data: { method: string }) {
+      if (data.method === 'bank_transfer') {
+        console.log("initiating bank transfer")
+      }
+    });
+    razorpay.on('virtual_account.credited', function(){onPaymentCompleted()})
+    razorpay.open();  
+  }, [Razorpay]);
+  return (
+    <div>
+      <button onClick={handlePayment} disabled={notReady || submitting}>Pay with Razorpay</button>
+    </div>
+  )
+}
 
-1\. Run the following command in the directory of the Medusa backend to run the backend:
+````
+## Contributing
 
-  ```bash
-  npm run start
-  ```
 
-2\. Enable Stripe in a region in the admin. You can refer to [this User Guide](https://docs.medusajs.com/user-guide/regions/providers) to learn how to do that. Alternatively, you can use the [Admin APIs](https://docs.medusajs.com/api/admin#tag/Region/operation/PostRegionsRegion).
+Pull requests are welcome. For major changes, please open an issue first to discuss what you would like to change.
 
-3\. Place an order using a storefront or the [Store APIs](https://docs.medusajs.com/api/store). You should be able to use Stripe as a payment method.
+Please make sure to update tests as appropriate.
 
----
+## License
+[MIT](https://choosealicense.com/licenses/mit/)
 
-## Additional Resources
 
-- [Stripe Plugin Documentation](https://docs.medusajs.com/plugins/payment/stripe)
+
+## Disclaimer
+The code was tested on limited number of usage scenarios. There maybe unforseen bugs, please raise the issues as they come, or create pull requests if you'd like to submit fixes.
+
+
+## Support us 
+
+As much as we love FOSS software, nothing in this world is truely free. We'll be grateful if you can buy our team a coffee (https://www.buymeacoffee.com/uMRqW9NmS9). 

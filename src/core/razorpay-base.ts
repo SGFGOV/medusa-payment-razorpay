@@ -86,6 +86,28 @@ abstract class RazorpayBase extends AbstractPaymentProcessor {
     return expectedSignature === razorpay_signature;
   }
 
+  async getRazorpayPaymentStatus(
+    paymentIntent: Orders.RazorpayOrder
+  ): Promise<PaymentSessionStatus> {
+    const payments = await this.razorpay_.orders.fetchPayments(
+      paymentIntent.id
+    );
+    return PaymentSessionStatus.AUTHORIZED;
+    /*
+    if (paymentIntent.amount_due != 0) {
+      return PaymentSessionStatus.REQUIRES_MORE;
+    }
+
+    if (paymentIntent.amount_paid == paymentIntent.amount) {
+      return PaymentSessionStatus.AUTHORIZED;
+    }
+    return PaymentSessionStatus.PENDING;*/
+
+    /**
+     * ToFix part payments
+     */
+  }
+
   async getPaymentStatus(
     paymentSessionData: Record<string, unknown>
   ): Promise<PaymentSessionStatus> {
@@ -95,10 +117,13 @@ abstract class RazorpayBase extends AbstractPaymentProcessor {
     switch (paymentIntent.status) {
       // created' | 'authorized' | 'captured' | 'refunded' | 'failed'
       case "created":
-        return PaymentSessionStatus.PENDING;
+        return PaymentSessionStatus.REQUIRES_MORE;
 
       case "paid":
         return PaymentSessionStatus.AUTHORIZED;
+
+      case "attempted":
+        return await this.getRazorpayPaymentStatus(paymentIntent);
 
       default:
         return PaymentSessionStatus.PENDING;
@@ -319,9 +344,8 @@ abstract class RazorpayBase extends AbstractPaymentProcessor {
     PaymentProcessorError | PaymentProcessorSessionResponse["session_data"]
   > {
     try {
-      const id = (
-        paymentSessionData.session_data as unknown as Orders.RazorpayOrder
-      ).id as string;
+      const id = (paymentSessionData as unknown as Orders.RazorpayOrder)
+        .id as string;
       const intent = await this.razorpay_.orders.fetch(id);
       return intent as unknown as PaymentProcessorSessionResponse["session_data"];
     } catch (e) {
