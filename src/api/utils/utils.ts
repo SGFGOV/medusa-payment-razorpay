@@ -29,18 +29,18 @@ export function isPaymentCollection(id) {
 }
 
 export function buildError(event: string, err: Error): string {
-  let message = `Razorpay webhook ${event} handling failed${EOL}${
+  let message = `Razorpay webhook ${event} handling failed.${EOL}${
     err?.stack ?? err?.message
-  }`;
+  }.`;
   if (err?.name === PostgresError.SERIALIZATION_FAILURE) {
     message = `Razorpay webhook ${event} handle failed. This can happen when this webhook is triggered during a cart completion and can be ignored. This event should be retried automatically.${EOL}${
       err?.stack ?? err?.message
-    }`;
+    }.`;
   }
   if (err?.message === "409") {
     message = `Razorpay webhook ${event} handle failed.${EOL}${
       err?.stack ?? err?.message
-    }`;
+    }.`;
   }
 
   return message;

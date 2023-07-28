@@ -258,22 +258,20 @@ abstract class RazorpayBase extends AbstractPaymentProcessor {
   ): Promise<
     PaymentProcessorError | PaymentProcessorSessionResponse["session_data"]
   > {
-    const order_id = (
-      paymentSessionData.session_data as unknown as Orders.RazorpayOrder
-    ).id;
+    const order_id = (paymentSessionData as unknown as Orders.RazorpayOrder).id;
     const paymentsResponse = await this.razorpay_.orders.fetchPayments(
       order_id
     );
-    const possibleCatpures = paymentsResponse.items.filter(
+    const possibleCatpures = paymentsResponse.items?.filter(
       (item) => item.status == "authorized"
     );
-    const result = possibleCatpures.map(async (payment) => {
-      const id = payment.id as string;
+    const result = possibleCatpures?.map(async (payment) => {
+      const { id, amount, currency } = payment;
 
       const paymentIntent = await this.razorpay_.payments.capture(
         id,
-        paymentSessionData["amount"] as string,
-        paymentSessionData.currency as string
+        amount as string,
+        currency as string
       );
       return paymentIntent;
     });
@@ -282,7 +280,7 @@ abstract class RazorpayBase extends AbstractPaymentProcessor {
       (acc, curr) => ((acc[curr.id] = curr), acc),
       {}
     );
-    (paymentSessionData["session_data"] as Orders.RazorpayOrder).payments = res;
+    (paymentSessionData as unknown as Orders.RazorpayOrder).payments = res;
 
     return paymentSessionData;
   }
@@ -301,7 +299,8 @@ abstract class RazorpayBase extends AbstractPaymentProcessor {
   ): Promise<
     PaymentProcessorError | PaymentProcessorSessionResponse["session_data"]
   > {
-    const id = (paymentSessionData.session_data as any).id as string;
+    const id = (paymentSessionData as unknown as Orders.RazorpayOrder)
+      .id as string;
     const paymentIntent = await this.razorpay_.orders.fetch(id);
     const paymentList = paymentIntent.payments ?? {};
 

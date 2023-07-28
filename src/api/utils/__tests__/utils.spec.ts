@@ -48,7 +48,7 @@ describe("Utils", () => {
 
       let message = buildError(event, error);
       expect(message).toBe(
-        `Razorpay webhook ${event} handle failed. This can happen when this webhook is triggered during a cart completion and can be ignored. This event should be retried automatically.${EOL}${error.message}`
+        `Razorpay webhook ${event} handle failed. This can happen when this webhook is triggered during a cart completion and can be ignored. This event should be retried automatically.${EOL}${error.message}.`
       );
 
       event = "test_event";
@@ -59,7 +59,7 @@ describe("Utils", () => {
 
       message = buildError(event, error);
       expect(message).toBe(
-        `Razorpay webhook ${event} handling failed${EOL}${error.message}`
+        `Razorpay webhook ${event} handling failed.${EOL}${error.message}.`
       );
 
       event = "test_event";
@@ -70,7 +70,7 @@ describe("Utils", () => {
 
       message = buildError(event, error);
       expect(message).toBe(
-        `Razorpay webhook ${event} handling failed${EOL}${error.message}`
+        `Razorpay webhook ${event} handling failed.${EOL}${error.message}.`
       );
     });
   });

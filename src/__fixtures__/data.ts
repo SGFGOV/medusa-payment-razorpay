@@ -1,32 +1,23 @@
 export const PaymentIntentDataByStatus = {
-  REQUIRES_PAYMENT_METHOD: {
-    id: "requires_payment_method",
-    status: "requires_payment_method",
-  },
-  REQUIRES_CONFIRMATION: {
-    id: "requires_confirmation",
-    status: "requires_confirmation",
-  },
-  PROCESSING: {
-    id: "processing",
-    status: "processing",
-  },
   CREATED: {
     id: "created",
-    status: "created",
+    status: "requires_more",
   },
 
-  FAILED: {
-    id: "failed",
-    status: "failed",
+  ATTEMPTED: {
+    id: "attempted",
+    status: "attempted",
+    payments: {
+      count: 1,
+      items: [{ id: "this is a test" }],
+    },
   },
-
-  REQUIRES_CAPTURE: {
-    id: "authorized",
-    status: "authorized",
-  },
-  SUCCEEDED: {
-    id: "authorized",
-    status: "authorized",
+  PAID: {
+    id: "paid",
+    status: "paid",
+    payments: {
+      count: 1,
+      items: [{ id: "this is a test", status: "authorized" }],
+    },
   },
 };

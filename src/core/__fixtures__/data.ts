@@ -61,13 +61,13 @@ export const initiatePaymentContextWithFailIntentCreation = {
 // AUTHORIZE PAYMENT DATA
 
 export const authorizePaymentSuccessData = {
-  id: PaymentIntentDataByStatus.SUCCEEDED.id,
+  id: PaymentIntentDataByStatus.ATTEMPTED.id,
 };
 
 // CANCEL PAYMENT DATA
 
 export const cancelPaymentSuccessData = {
-  id: PaymentIntentDataByStatus.SUCCEEDED.id,
+  id: PaymentIntentDataByStatus.ATTEMPTED.id,
 };
 
 export const cancelPaymentFailData = {
@@ -82,7 +82,7 @@ export const cancelPaymentPartiallyFailData = {
 
 export const capturePaymentContextSuccessData = {
   paymentSessionData: {
-    id: PaymentIntentDataByStatus.SUCCEEDED.id,
+    id: PaymentIntentDataByStatus.ATTEMPTED.id,
   },
 };
 
@@ -101,7 +101,7 @@ export const capturePaymentContextPartiallyFailData = {
 // DELETE PAYMENT DATA
 
 export const deletePaymentSuccessData = {
-  id: PaymentIntentDataByStatus.SUCCEEDED.id,
+  id: PaymentIntentDataByStatus.ATTEMPTED.id,
 };
 
 export const deletePaymentFailData = {
@@ -115,7 +115,7 @@ export const deletePaymentPartiallyFailData = {
 // REFUND PAYMENT DATA
 
 export const refundPaymentSuccessData = {
-  id: PaymentIntentDataByStatus.SUCCEEDED.id,
+  sessionid: PaymentIntentDataByStatus.ATTEMPTED.id,
 };
 
 export const refundPaymentFailData = {
@@ -125,7 +125,7 @@ export const refundPaymentFailData = {
 // RETRIEVE PAYMENT DATA
 
 export const retrievePaymentSuccessData = {
-  id: PaymentIntentDataByStatus.SUCCEEDED.id,
+  id: PaymentIntentDataByStatus.ATTEMPTED.id,
 };
 
 export const retrievePaymentFailData = {
@@ -189,7 +189,7 @@ export const updatePaymentContextWithDifferentAmount = {
   },
   context: {},
   paymentSessionData: {
-    id: PaymentIntentDataByStatus.SUCCEEDED.id,
+    id: PaymentIntentDataByStatus.ATTEMPTED.id,
     customer: "test",
     amount: 1000,
   },
@@ -224,7 +224,7 @@ export const updatePaymentDataWithAmountData = {
 
 export const updatePaymentDataWithoutAmountData = {
   sessionId: RAZORPAY_ID,
-  
+
   /** only notes can be updated */
   notes: {
     customProp: "test",
