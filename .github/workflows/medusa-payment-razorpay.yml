@@ -1,4 +1,4 @@
-name: medusa-plugin-auth
+name: medusa-plugin-razorpay
 on:
   push:
     branches:
