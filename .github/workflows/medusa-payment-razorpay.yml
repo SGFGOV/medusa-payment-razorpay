@@ -1,11 +1,11 @@
-name: medusa-plugin-razorpay
+name: medusa-payment-razorpay
 on:
   push:
     branches:
-      - main
+      - master
   pull_request:
     branches:
-      - main
+      - master
 
 jobs:
   unit-test:
@@ -30,9 +30,9 @@ jobs:
           node-version: ${{ matrix.node-verion }}
 
       - name: 'yarn install'
-        working-directory: ./packages/medusa-payment-razorpay
+        working-directory: ./
         run: yarn
 
       - name: 'run unit tests'
-        working-directory: ./packages/medusa-payment-razorpay
+        working-directory: ./
         run: yarn run test
