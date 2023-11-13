@@ -161,6 +161,12 @@ abstract class RazorpayBase extends AbstractPaymentProcessor {
       ...intentRequestData,
     };
 
+    if(!(customer && customer?.billing_address?.phone && customer?.phone ))
+    {
+     throw new MedusaError(MedusaError.Types.PAYMENT_AUTHORIZATION_ERROR,
+      "Phone number not found in context",MedusaError.Codes.CART_INCOMPATIBLE_STATE);
+    }
+
     if (customer?.metadata?.razorpay_id) {
       intentRequest.notes!.razorpay_id = customer.metadata
         .razorpay_id as string;
@@ -169,7 +175,7 @@ abstract class RazorpayBase extends AbstractPaymentProcessor {
       try {
         razorpayCustomer = await this.razorpay_.customers.create({
           email,
-          contact: customer?.phone,
+          contact: customer?.phone ?? customer?.billing_address?.phone ?? "",
           gstin: customer?.metadata?.gstin as string,
           fail_existing: 0,
           name: `${customer?.last_name} ${customer?.last_name}`,
