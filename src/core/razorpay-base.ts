@@ -8,16 +8,10 @@ import {
   PaymentProcessorSessionResponse,
   PaymentSessionStatus,
 } from "@medusajs/medusa";
-import {
-  ErrorCodes,
-  ErrorIntentStatus,
-  PaymentIntentOptions,
-  RazorpayOptions,
-} from "../types";
+import { ErrorCodes, PaymentIntentOptions, RazorpayOptions } from "../types";
 import { MedusaError } from "@medusajs/utils";
 import { Orders } from "razorpay/dist/types/orders";
 import crypto from "crypto";
-import { Payments } from "razorpay/dist/types/payments";
 import { Refunds } from "razorpay/dist/types/refunds";
 
 /**
@@ -89,9 +83,9 @@ abstract class RazorpayBase extends AbstractPaymentProcessor {
   async getRazorpayPaymentStatus(
     paymentIntent: Orders.RazorpayOrder
   ): Promise<PaymentSessionStatus> {
-    const payments = await this.razorpay_.orders.fetchPayments(
-      paymentIntent.id
-    );
+    if (!paymentIntent) {
+      return PaymentSessionStatus.ERROR;
+    }
     return PaymentSessionStatus.AUTHORIZED;
     /*
     if (paymentIntent.amount_due != 0) {
@@ -134,17 +128,7 @@ abstract class RazorpayBase extends AbstractPaymentProcessor {
     context: PaymentProcessorContext
   ): Promise<PaymentProcessorError | PaymentProcessorSessionResponse> {
     const intentRequestData = this.getPaymentIntentOptions();
-    const {
-      email,
-      context: cart_context,
-      currency_code,
-      amount,
-      resource_id,
-      customer,
-    } = context;
-
-    const description = (cart_context.payment_description ??
-      this.options_?.payment_description) as string;
+    const { email, currency_code, amount, resource_id, customer } = context;
 
     const intentRequest: Orders.RazorpayOrderCreateRequestBody = {
       amount: Math.round(amount),
@@ -161,6 +145,14 @@ abstract class RazorpayBase extends AbstractPaymentProcessor {
       ...intentRequestData,
     };
 
+    if (!(customer?.billing_address?.phone || customer?.phone)) {
+      throw new MedusaError(
+        MedusaError.Types.PAYMENT_AUTHORIZATION_ERROR,
+        "Phone number not found in context",
+        MedusaError.Codes.CART_INCOMPATIBLE_STATE
+      );
+    }
+
     if (customer?.metadata?.razorpay_id) {
       intentRequest.notes!.razorpay_id = customer.metadata
         .razorpay_id as string;
@@ -169,7 +161,7 @@ abstract class RazorpayBase extends AbstractPaymentProcessor {
       try {
         razorpayCustomer = await this.razorpay_.customers.create({
           email,
-          contact: customer?.phone,
+          contact: customer?.phone ?? customer?.billing_address?.phone ?? "",
           gstin: customer?.metadata?.gstin as string,
           fail_existing: 0,
           name: `${customer?.last_name} ${customer?.last_name}`,
@@ -233,24 +225,6 @@ abstract class RazorpayBase extends AbstractPaymentProcessor {
       code: ErrorCodes.UNSUPPORTED_OPERATION,
     };
     return error;
-
-    /* try {
-      const id = paymentSessionData.id as string
-      return (await this.razorpay_.orders.edit(
-        paymentSessionData.order_id as string,
-        {
-          notes: {
-            status: "cancelled"
-          }
-        }
-      )) as unknown as PaymentProcessorSessionResponse["session_data"]
-    } catch (error) {
-      if (error.payment_intent?.status === ErrorIntentStatus.CANCELED) {
-        return error.payment_intent
-      }
-
-      return this.buildError("An error occurred in cancelPayment", error)
-    }*/
   }
 
   async capturePayment(
@@ -382,11 +356,6 @@ abstract class RazorpayBase extends AbstractPaymentProcessor {
         delete sessionOrderData.id;
         delete sessionOrderData.created_at;
 
-        const request: Orders.RazorpayOrderCreateRequestBody = {
-          ...sessionOrderData,
-          amount: amount,
-          currency: currency_code?.toUpperCase() ?? sessionOrderData.currency!,
-        };
         context.currency_code =
           currency_code?.toUpperCase() ?? sessionOrderData.currency!;
         const newPaymentSessionOrder = (await this.initiatePayment(
