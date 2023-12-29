@@ -161,10 +161,12 @@ abstract class RazorpayBase extends AbstractPaymentProcessor {
       ...intentRequestData,
     };
 
-    if(!(customer && customer?.billing_address?.phone && customer?.phone ))
-    {
-     throw new MedusaError(MedusaError.Types.PAYMENT_AUTHORIZATION_ERROR,
-      "Phone number not found in context",MedusaError.Codes.CART_INCOMPATIBLE_STATE);
+    if (!(customer?.billing_address?.phone || customer?.phone)) {
+      throw new MedusaError(
+        MedusaError.Types.PAYMENT_AUTHORIZATION_ERROR,
+        "Phone number not found in context",
+        MedusaError.Codes.CART_INCOMPATIBLE_STATE
+      );
     }
 
     if (customer?.metadata?.razorpay_id) {

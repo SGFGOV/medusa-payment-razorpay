@@ -12,20 +12,23 @@ import { PaymentIntentDataByStatus } from "../../__fixtures__/data";
 
 export const initiatePaymentContextWithExistingCustomer = {
   email: EXISTING_CUSTOMER_EMAIL,
+  phone: "9876542321",
   currency_code: "inr",
   amount: 1000,
   resource_id: "test",
-  customer: { last_name: "test", first_name: "customer" },
+  customer: { last_name: "test", first_name: "customer", phone: "9876542321" },
   context: {},
   paymentSessionData: {},
 };
 
 export const initiatePaymentContextWithExistingCustomerRazorpayId = {
   email: EXISTING_CUSTOMER_EMAIL,
+
   currency_code: "inr",
   amount: 1000,
   resource_id: "test",
   customer: {
+    phone: "9876542321",
     last_name: "test",
     first_name: "customer",
     metadata: {
