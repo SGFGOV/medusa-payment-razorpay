@@ -83,6 +83,9 @@ abstract class RazorpayBase extends AbstractPaymentProcessor {
   async getRazorpayPaymentStatus(
     paymentIntent: Orders.RazorpayOrder
   ): Promise<PaymentSessionStatus> {
+    if (!paymentIntent) {
+      return PaymentSessionStatus.ERROR;
+    }
     return PaymentSessionStatus.AUTHORIZED;
     /*
     if (paymentIntent.amount_due != 0) {
