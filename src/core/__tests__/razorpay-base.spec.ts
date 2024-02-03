@@ -61,7 +61,11 @@ let config: RazorpayOptions = {
 if (!isMocksEnabled()) {
   dotenv.config();
 }
-const container = {};
+const container = {
+  resolve: (s): any => {
+    return { logger: { error: console.error } };
+  },
+};
 config = {
   ...config,
   key_id: process.env.RAZORPAY_ID!,

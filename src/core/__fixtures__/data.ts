@@ -36,7 +36,11 @@ export const initiatePaymentContextWithExistingCustomerRazorpayId = {
     },
   },
   context: {},
-  paymentSessionData: {},
+  paymentSessionData: {
+    notes: {
+      customer_id: "TEST-CUSTOMER",
+    },
+  },
 };
 
 export const initiatePaymentContextWithWrongEmail = {
