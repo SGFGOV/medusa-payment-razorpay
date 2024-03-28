@@ -30,11 +30,11 @@ abstract class RazorpayBase extends AbstractPaymentProcessor {
   protected razorpay_: Razorpay;
   logger: Logger;
 
-  protected constructor(container: MedusaContainer, options) {
+  protected constructor(container: any, options) {
     super(container, options);
 
     this.options_ = options;
-    this.logger = container.resolve("logger") as Logger;
+    this.logger = container.logger as Logger;
 
     this.init();
   }
@@ -265,8 +265,7 @@ abstract class RazorpayBase extends AbstractPaymentProcessor {
     }
 
     return {
-      session_data:
-        session_data ?? ({ ...context.paymentSessionData } as any),
+      session_data: session_data ?? ({ ...context.paymentSessionData } as any),
       update_requests: customer?.metadata?.razorpay_id
         ? undefined
         : {

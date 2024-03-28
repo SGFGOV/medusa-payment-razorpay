@@ -62,10 +62,9 @@ if (!isMocksEnabled()) {
   dotenv.config();
 }
 const container = {
-  resolve: (s): any => {
-    return { logger: { error: console.error } };
-  },
+  logger: { error: console.error },
 };
+
 config = {
   ...config,
   key_id: process.env.RAZORPAY_ID!,
