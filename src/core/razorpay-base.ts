@@ -2,9 +2,10 @@ import Razorpay from "razorpay";
 import { EOL } from "os";
 import {
   AbstractPaymentProcessor,
+  Customer,
+  CustomerService,
   isPaymentProcessorError,
   Logger,
-  MedusaContainer,
   PaymentProcessorContext,
   PaymentProcessorError,
   PaymentProcessorSessionResponse,
@@ -16,7 +17,6 @@ import { Orders } from "razorpay/dist/types/orders";
 import crypto from "crypto";
 import { Refunds } from "razorpay/dist/types/refunds";
 import { Customers } from "razorpay/dist/types/customers";
-import { AwilixContainer } from "awilix";
 
 /**
  * The paymentIntent object corresponds to a razorpay order.
@@ -29,12 +29,14 @@ abstract class RazorpayBase extends AbstractPaymentProcessor {
   protected readonly options_: RazorpayOptions;
   protected razorpay_: Razorpay;
   logger: Logger;
+  customerService: CustomerService;
 
   protected constructor(container: any, options) {
     super(container, options);
 
     this.options_ = options;
     this.logger = container.logger as Logger;
+    this.customerService = container.customerService as CustomerService;
 
     this.init();
   }
@@ -130,12 +132,46 @@ abstract class RazorpayBase extends AbstractPaymentProcessor {
     }
   }
 
+  async updateRazorpayMetadatainCustomer(
+    customer: Customer,
+    parameterName: string,
+    parameterValue: string
+  ): Promise<Customer> {
+    const metadata = customer.metadata;
+    let razorpay = metadata?.razorpay as Record<string, string>;
+    if (razorpay) {
+      razorpay[parameterName] = parameterValue;
+    } else {
+      razorpay = {};
+      razorpay[parameterName] = parameterValue;
+    }
+    let result: Customer;
+    if (metadata) {
+      result = await this.customerService.update(customer.id, {
+        metadata: {
+          ...metadata,
+          razorpay,
+        },
+      });
+    } else {
+      result = await this.customerService.update(customer.id, {
+        metadata: {
+          razorpay,
+        },
+      });
+    }
+    return result;
+  }
+
   async createOrUpdateCustomer(
     intentRequest,
-    customer,
-    email
+    customer: Customer,
+    email: string
   ): Promise<Customers.RazorpayCustomer | undefined> {
     let razorpayCustomer: Customers.RazorpayCustomer;
+    if (!customer) {
+      return;
+    }
     if (customer?.metadata?.razorpay_id) {
       intentRequest.notes!.razorpay_id = customer.metadata
         .razorpay_id as string;
@@ -192,23 +228,75 @@ abstract class RazorpayBase extends AbstractPaymentProcessor {
       email;
     if (isValidCreateCustomerInput) {
       try {
-        razorpayCustomer = await this.razorpay_.customers.create({
+        const customerParams: Customers.RazorpayCustomerCreateRequestBody = {
           email,
           contact: customer?.phone ?? customer?.billing_address?.phone ?? "",
-          gstin: (customer?.metadata?.gstin as string) ?? "",
+          gstin: (customer?.metadata?.gstin as string) ?? undefined,
           fail_existing: 0,
           name: `${customer?.first_name ?? ""} ${customer?.last_name ?? ""}`,
           notes: {
             updated_at: new Date().toISOString(),
           },
-        });
+        };
+        razorpayCustomer = await this.razorpay_.customers.create(
+          customerParams
+        );
+
         intentRequest.notes!.customer_id = razorpayCustomer?.id;
+        await this.updateRazorpayMetadatainCustomer(
+          customer,
+          "rp_customer_id",
+          razorpayCustomer.id
+        );
         return razorpayCustomer;
       } catch (e) {
-        throw new Error(
-          "An error occurred in initiatePayment when creating a Razorpay customer" +
-            e.message
-        );
+        try {
+          let customerList: Customers.RazorpayCustomer[] = [];
+          if (
+            (customer.metadata.razorpay as Record<string, string>)
+              .rp_customer_id
+          ) {
+            razorpayCustomer = await this.razorpay_.customers.fetch(
+              (customer.metadata.razorpay as Record<string, string>)
+                .rp_customer_id as string
+            );
+          } else {
+            const count = 10;
+            let skip = 0;
+            do {
+              customerList = (
+                await this.razorpay_.customers.all({
+                  count,
+                  skip,
+                })
+              )?.items;
+              razorpayCustomer =
+                customerList?.find(
+                  (c) =>
+                    c.contact == customer?.phone || c.email == customer.email
+                ) ?? customerList?.[0];
+              if (razorpayCustomer) {
+                await this.updateRazorpayMetadatainCustomer(
+                  customer,
+                  "rp_customer_id",
+                  razorpayCustomer.id
+                );
+                break;
+              }
+              if (!customerList || !razorpayCustomer) {
+                throw new Error(
+                  "no customers and cant create customers in razorpay"
+                );
+              }
+              skip += count;
+            } while (customerList?.length == 0);
+          }
+        } catch (f) {
+          throw new Error(
+            "An error occurred in initiatePayment when creating a Razorpay customer" +
+              e.message
+          );
+        }
       }
     }
     return;
@@ -246,7 +334,7 @@ abstract class RazorpayBase extends AbstractPaymentProcessor {
     try {
       const razorpayCustomer = await this.createOrUpdateCustomer(
         intentRequest,
-        customer,
+        customer!,
         email
       );
       let session_data: Orders.RazorpayOrder;
@@ -407,6 +495,10 @@ abstract class RazorpayBase extends AbstractPaymentProcessor {
   ): Promise<PaymentProcessorError | PaymentProcessorSessionResponse | void> {
     const { amount, customer, paymentSessionData, currency_code } = context;
     const razorpayId = customer?.metadata?.razorpay_id;
+
+    if (!customer) {
+      return;
+    }
 
     if (razorpayId !== (paymentSessionData?.customer as any)?.id) {
       if (!(customer?.billing_address?.phone || customer?.phone)) {

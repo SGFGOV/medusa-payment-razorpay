@@ -1,7 +1,7 @@
-import { EOL } from "os";
 import { RazorpayTest } from "../__fixtures__/razorpay-test";
 import { PaymentIntentDataByStatus } from "../../__fixtures__/data";
 import {
+  Customer,
   PaymentProcessorContext,
   PaymentProcessorSessionResponse,
   PaymentSessionStatus,
@@ -20,35 +20,23 @@ import {
   cancelPaymentFailData,
   cancelPaymentPartiallyFailData,
   cancelPaymentSuccessData,
-  capturePaymentContextFailData,
-  capturePaymentContextPartiallyFailData,
   capturePaymentContextSuccessData,
   deletePaymentFailData,
   deletePaymentPartiallyFailData,
   deletePaymentSuccessData,
   initiatePaymentContextWithExistingCustomer,
   initiatePaymentContextWithExistingCustomerRazorpayId,
-  initiatePaymentContextWithFailIntentCreation,
-  initiatePaymentContextWithWrongEmail,
-  refundPaymentFailData,
   refundPaymentSuccessData,
-  retrievePaymentFailData,
   retrievePaymentSuccessData,
-  updatePaymentContextFailWithDifferentAmount,
   updatePaymentContextWithDifferentAmount,
-  updatePaymentContextWithExistingCustomer,
-  updatePaymentContextWithExistingCustomerRazorpayId,
-  updatePaymentContextWithWrongEmail,
-  updatePaymentDataWithAmountData,
   updatePaymentDataWithoutAmountData,
 } from "../__fixtures__/data";
 import {
-  PARTIALLY_FAIL_INTENT_ID,
   RAZORPAY_ID,
   RazorpayMock,
   isMocksEnabled,
 } from "../../__mocks__/razorpay";
-import { ErrorCodes, ErrorIntentStatus, RazorpayOptions } from "../../types";
+import { ErrorCodes, RazorpayOptions } from "../../types";
 let config: RazorpayOptions = {
   key_id: "test",
   key_secret: "test",
@@ -63,6 +51,18 @@ if (!isMocksEnabled()) {
 }
 const container = {
   logger: { error: console.error },
+  customerService: {
+    retrieve: (id: string): any => {
+      return { billing_address: { phone: "12345" } };
+    },
+    update: (id: string, data): any => {
+      const customer: Customer = {
+        id,
+        ...data,
+      };
+      return customer;
+    },
+  },
 };
 
 config = {
