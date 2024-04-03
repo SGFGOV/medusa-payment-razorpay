@@ -2,23 +2,21 @@ import Razorpay from "razorpay";
 import { EOL } from "os";
 import {
   AbstractPaymentProcessor,
+  Customer,
+  CustomerService,
   isPaymentProcessorError,
+  Logger,
   PaymentProcessorContext,
   PaymentProcessorError,
   PaymentProcessorSessionResponse,
   PaymentSessionStatus,
 } from "@medusajs/medusa";
-import {
-  ErrorCodes,
-  ErrorIntentStatus,
-  PaymentIntentOptions,
-  RazorpayOptions,
-} from "../types";
+import { ErrorCodes, PaymentIntentOptions, RazorpayOptions } from "../types";
 import { MedusaError } from "@medusajs/utils";
 import { Orders } from "razorpay/dist/types/orders";
 import crypto from "crypto";
-import { Payments } from "razorpay/dist/types/payments";
 import { Refunds } from "razorpay/dist/types/refunds";
+import { Customers } from "razorpay/dist/types/customers";
 
 /**
  * The paymentIntent object corresponds to a razorpay order.
@@ -30,11 +28,15 @@ abstract class RazorpayBase extends AbstractPaymentProcessor {
 
   protected readonly options_: RazorpayOptions;
   protected razorpay_: Razorpay;
+  logger: Logger;
+  customerService: CustomerService;
 
-  protected constructor(_, options) {
-    super(_, options);
+  protected constructor(container: any, options) {
+    super(container, options);
 
     this.options_ = options;
+    this.logger = container.logger as Logger;
+    this.customerService = container.customerService as CustomerService;
 
     this.init();
   }
@@ -89,9 +91,9 @@ abstract class RazorpayBase extends AbstractPaymentProcessor {
   async getRazorpayPaymentStatus(
     paymentIntent: Orders.RazorpayOrder
   ): Promise<PaymentSessionStatus> {
-    const payments = await this.razorpay_.orders.fetchPayments(
-      paymentIntent.id
-    );
+    if (!paymentIntent) {
+      return PaymentSessionStatus.ERROR;
+    }
     return PaymentSessionStatus.AUTHORIZED;
     /*
     if (paymentIntent.amount_due != 0) {
@@ -130,26 +132,194 @@ abstract class RazorpayBase extends AbstractPaymentProcessor {
     }
   }
 
+  async updateRazorpayMetadatainCustomer(
+    customer: Customer,
+    parameterName: string,
+    parameterValue: string
+  ): Promise<Customer> {
+    const metadata = customer.metadata;
+    let razorpay = metadata?.razorpay as Record<string, string>;
+    if (razorpay) {
+      razorpay[parameterName] = parameterValue;
+    } else {
+      razorpay = {};
+      razorpay[parameterName] = parameterValue;
+    }
+    let result: Customer;
+    if (metadata) {
+      result = await this.customerService.update(customer.id, {
+        metadata: {
+          ...metadata,
+          razorpay,
+        },
+      });
+    } else {
+      result = await this.customerService.update(customer.id, {
+        metadata: {
+          razorpay,
+        },
+      });
+    }
+    return result;
+  }
+
+  async createOrUpdateCustomer(
+    intentRequest,
+    customer: Customer,
+    email: string
+  ): Promise<Customers.RazorpayCustomer | undefined> {
+    let razorpayCustomer: Customers.RazorpayCustomer;
+    if (!customer) {
+      return;
+    }
+    if (customer?.metadata?.razorpay_id) {
+      intentRequest.notes!.razorpay_id = customer.metadata
+        .razorpay_id as string;
+    }
+
+    if (intentRequest.notes?.customer_id) {
+      try {
+        razorpayCustomer = await this.razorpay_.customers.fetch(
+          intentRequest.notes.customer_id as string
+        );
+        if (razorpayCustomer) {
+          {
+            const editName = customer?.first_name || customer?.last_name;
+            const editPhone =
+              customer?.phone || customer?.billing_address?.phone;
+            try {
+              razorpayCustomer = await this.razorpay_.customers.edit(
+                razorpayCustomer.id,
+                {
+                  email: email ?? razorpayCustomer.email,
+                  contact: editPhone
+                    ? (customer?.phone ?? customer?.billing_address?.phone)!
+                    : razorpayCustomer.contact!,
+                  name: editName
+                    ? `${customer?.first_name ?? ""} ${
+                        customer?.last_name ?? ""
+                      }`
+                    : razorpayCustomer.name,
+                }
+              );
+              return razorpayCustomer;
+            } catch (e) {
+              this.logger.error(
+                "unable to edit customer in the razorpay payment processor"
+              );
+            }
+          }
+          intentRequest.paymentSessionData = {
+            ...intentRequest.paymentSessionData,
+            notes: {},
+          };
+          intentRequest.paymentSessionData.notes!.customer_id =
+            razorpayCustomer?.id;
+        }
+      } catch (e) {
+        this.logger.warn(
+          "unable to fetch customer in the razorpay payment processor"
+        );
+      }
+    }
+    const isValidCreateCustomerInput =
+      (customer?.phone || customer?.billing_address?.phone) &&
+      (customer?.first_name || customer?.last_name) &&
+      email;
+    if (isValidCreateCustomerInput) {
+      try {
+        const customerParams: Customers.RazorpayCustomerCreateRequestBody = {
+          email,
+          contact: customer?.phone ?? customer?.billing_address?.phone ?? "",
+          gstin: (customer?.metadata?.gstin as string) ?? undefined,
+          fail_existing: 0,
+          name: `${customer?.first_name ?? ""} ${customer?.last_name ?? ""}`,
+          notes: {
+            updated_at: new Date().toISOString(),
+          },
+        };
+        razorpayCustomer = await this.razorpay_.customers.create(
+          customerParams
+        );
+
+        intentRequest.notes!.customer_id = razorpayCustomer?.id;
+        await this.updateRazorpayMetadatainCustomer(
+          customer,
+          "rp_customer_id",
+          razorpayCustomer.id
+        );
+        return razorpayCustomer;
+      } catch (e) {
+        try {
+          let customerList: Customers.RazorpayCustomer[] = [];
+          if (
+            (customer.metadata.razorpay as Record<string, string>)
+              .rp_customer_id
+          ) {
+            razorpayCustomer = await this.razorpay_.customers.fetch(
+              (customer.metadata.razorpay as Record<string, string>)
+                .rp_customer_id as string
+            );
+          } else {
+            const count = 10;
+            let skip = 0;
+            do {
+              customerList = (
+                await this.razorpay_.customers.all({
+                  count,
+                  skip,
+                })
+              )?.items;
+              razorpayCustomer =
+                customerList?.find(
+                  (c) =>
+                    c.contact == customer?.phone || c.email == customer.email
+                ) ?? customerList?.[0];
+              if (razorpayCustomer) {
+                await this.updateRazorpayMetadatainCustomer(
+                  customer,
+                  "rp_customer_id",
+                  razorpayCustomer.id
+                );
+                break;
+              }
+              if (!customerList || !razorpayCustomer) {
+                throw new Error(
+                  "no customers and cant create customers in razorpay"
+                );
+              }
+              skip += count;
+            } while (customerList?.length == 0);
+          }
+        } catch (f) {
+          throw new Error(
+            "An error occurred in initiatePayment when creating a Razorpay customer" +
+              e.message
+          );
+        }
+      }
+    }
+    return;
+  }
+
   async initiatePayment(
     context: PaymentProcessorContext
   ): Promise<PaymentProcessorError | PaymentProcessorSessionResponse> {
     const intentRequestData = this.getPaymentIntentOptions();
     const {
       email,
-      context: cart_context,
       currency_code,
       amount,
       resource_id,
       customer,
+      paymentSessionData,
     } = context;
 
-    const description = (cart_context.payment_description ??
-      this.options_?.payment_description) as string;
-
+    const sessionNotes = paymentSessionData.notes as Record<string, string>;
     const intentRequest: Orders.RazorpayOrderCreateRequestBody = {
       amount: Math.round(amount),
       currency: currency_code.toUpperCase(),
-      notes: { resource_id },
+      notes: { ...sessionNotes, resource_id },
       payment: {
         capture: this.options_.capture ? "automatic" : "manual",
         capture_options: {
@@ -160,45 +330,30 @@ abstract class RazorpayBase extends AbstractPaymentProcessor {
       },
       ...intentRequestData,
     };
-
-    if (customer?.metadata?.razorpay_id) {
-      intentRequest.notes!.razorpay_id = customer.metadata
-        .razorpay_id as string;
-    } else {
-      let razorpayCustomer;
+    let session_data: Orders.RazorpayOrder | undefined;
+    try {
+      const razorpayCustomer = await this.createOrUpdateCustomer(
+        intentRequest,
+        customer!,
+        email
+      );
+      let session_data: Orders.RazorpayOrder;
       try {
-        razorpayCustomer = await this.razorpay_.customers.create({
-          email,
-          contact: customer?.phone,
-          gstin: customer?.metadata?.gstin as string,
-          fail_existing: 0,
-          name: `${customer?.last_name} ${customer?.last_name}`,
-          notes: {
-            updated_at: new Date().toISOString(),
-          },
-        });
+        if (razorpayCustomer) {
+          session_data = await this.razorpay_.orders.create(intentRequest);
+        }
       } catch (e) {
         return this.buildError(
-          "An error occurred in initiatePayment when creating a Razorpay customer",
+          "An error occurred in InitiatePayment during the creation of the razorpay payment intent",
           e
         );
       }
-
-      intentRequest.notes!.customer_id = razorpayCustomer.id;
-    }
-
-    let session_data: Orders.RazorpayOrder;
-    try {
-      session_data = await this.razorpay_.orders.create(intentRequest);
     } catch (e) {
-      return this.buildError(
-        "An error occurred in InitiatePayment during the creation of the razorpay payment intent",
-        e
-      );
+      this.logger.error(`unanble to create customer ${e.message}`);
     }
 
     return {
-      session_data: session_data as any,
+      session_data: session_data ?? ({ ...context.paymentSessionData } as any),
       update_requests: customer?.metadata?.razorpay_id
         ? undefined
         : {
@@ -233,24 +388,6 @@ abstract class RazorpayBase extends AbstractPaymentProcessor {
       code: ErrorCodes.UNSUPPORTED_OPERATION,
     };
     return error;
-
-    /* try {
-      const id = paymentSessionData.id as string
-      return (await this.razorpay_.orders.edit(
-        paymentSessionData.order_id as string,
-        {
-          notes: {
-            status: "cancelled"
-          }
-        }
-      )) as unknown as PaymentProcessorSessionResponse["session_data"]
-    } catch (error) {
-      if (error.payment_intent?.status === ErrorIntentStatus.CANCELED) {
-        return error.payment_intent
-      }
-
-      return this.buildError("An error occurred in cancelPayment", error)
-    }*/
   }
 
   async capturePayment(
@@ -359,7 +496,18 @@ abstract class RazorpayBase extends AbstractPaymentProcessor {
     const { amount, customer, paymentSessionData, currency_code } = context;
     const razorpayId = customer?.metadata?.razorpay_id;
 
+    if (!customer) {
+      return;
+    }
+
     if (razorpayId !== (paymentSessionData?.customer as any)?.id) {
+      if (!(customer?.billing_address?.phone || customer?.phone)) {
+        throw new MedusaError(
+          MedusaError.Types.PAYMENT_AUTHORIZATION_ERROR,
+          "Phone number not found in context",
+          MedusaError.Codes.CART_INCOMPATIBLE_STATE
+        );
+      }
       const result = await this.initiatePayment(context);
       if (isPaymentProcessorError(result)) {
         return this.buildError(
@@ -382,26 +530,11 @@ abstract class RazorpayBase extends AbstractPaymentProcessor {
         delete sessionOrderData.id;
         delete sessionOrderData.created_at;
 
-        const request: Orders.RazorpayOrderCreateRequestBody = {
-          ...sessionOrderData,
-          amount: amount,
-          currency: currency_code?.toUpperCase() ?? sessionOrderData.currency!,
-        };
         context.currency_code =
           currency_code?.toUpperCase() ?? sessionOrderData.currency!;
         const newPaymentSessionOrder = (await this.initiatePayment(
           context
         )) as PaymentProcessorSessionResponse;
-
-        /* const sessionData = await this.razorpay_.orders.edit(
-          newPaymentSessionOrder.session_data.id,
-          {
-            notes: {
-              updated: "true",
-              amount: Math.round(amount),
-            },
-          }
-        );*/
 
         return { session_data: { ...newPaymentSessionOrder.session_data } };
       } catch (e) {

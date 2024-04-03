@@ -7,7 +7,9 @@ export const EXISTING_CUSTOMER_EMAIL = "right@test.fr";
 export const RAZORPAY_ID = isMocksEnabled() ? "test" : process.env.RAZORPAY_ID;
 export const PARTIALLY_FAIL_INTENT_ID = "partially_unknown";
 export const FAIL_INTENT_ID = "unknown";
+import { Customers } from "razorpay/dist/types/customers";
 import dotenv from "dotenv";
+import { Customer } from "@medusajs/medusa";
 dotenv.config();
 
 const mockEnabled = process.env.DISABLE_MOCKS == "true" ? false : true;
@@ -165,6 +167,28 @@ export const RazorpayMock = {
       }
 
       throw new Error("Error");
+    }),
+    fetch: jest.fn().mockImplementation(async (data: any) => {
+      const customer: Customers.RazorpayCustomer = {
+        id: "TEST-CUSTOMER",
+        entity: "customer",
+        created_at: 0,
+        name: "test customer",
+        email: EXISTING_CUSTOMER_EMAIL,
+        contact: "9876543210",
+      };
+      return Promise.resolve(customer);
+    }),
+    edit: jest.fn().mockImplementation(async (id, data) => {
+      const customer: Customers.RazorpayCustomer = {
+        id: id as string,
+        entity: "customer",
+        created_at: 0,
+        name: "test customer",
+        email: EXISTING_CUSTOMER_EMAIL,
+        contact: "9876543210",
+      };
+      return Promise.resolve(customer);
     }),
   },
 };
