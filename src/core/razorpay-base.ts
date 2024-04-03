@@ -536,16 +536,6 @@ abstract class RazorpayBase extends AbstractPaymentProcessor {
           context
         )) as PaymentProcessorSessionResponse;
 
-        /* const sessionData = await this.razorpay_.orders.edit(
-          newPaymentSessionOrder.session_data.id,
-          {
-            notes: {
-              updated: "true",
-              amount: Math.round(amount),
-            },
-          }
-        );*/
-
         return { session_data: { ...newPaymentSessionOrder.session_data } };
       } catch (e) {
         return this.buildError("An error occurred in updatePayment", e);
