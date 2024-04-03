@@ -291,6 +291,7 @@ abstract class RazorpayBase extends AbstractPaymentProcessor {
               skip += count;
             } while (customerList?.length == 0);
           }
+          return razorpayCustomer;
         } catch (f) {
           throw new Error(
             "An error occurred in initiatePayment when creating a Razorpay customer" +
