@@ -162,7 +162,11 @@ abstract class RazorpayBase extends AbstractPaymentProcessor {
     }
     return result;
   }
-
+  // @Todo refactor this function to 3 simple functions to make it more readable
+  // 1. check existing customer
+  // 2. create customer
+  // 3. update customer
+  
   async createOrUpdateCustomer(
     intentRequest,
     customer: Customer,
@@ -338,7 +342,6 @@ abstract class RazorpayBase extends AbstractPaymentProcessor {
         customer!,
         email
       );
-      let session_data: Orders.RazorpayOrder;
       try {
         if (razorpayCustomer) {
           session_data = await this.razorpay_.orders.create(intentRequest);
