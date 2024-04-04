@@ -166,7 +166,7 @@ abstract class RazorpayBase extends AbstractPaymentProcessor {
   // 1. check existing customer
   // 2. create customer
   // 3. update customer
-  
+
   async createOrUpdateCustomer(
     intentRequest,
     customer: Customer,
