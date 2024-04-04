@@ -1,11 +1,11 @@
 {
   "name": "medusa-payment-razorpay",
-  "version": "7.0.8",
+  "version": "7.0.9",
   "description": "Razorpay Payment provider for Meduas Commerce",
   "main": "dist/index.js",
   "repository": {
     "type": "git",
-    "url": "https://github.com/medusajs/medusa",
+    "url": "https://github.com/SGFGOV/medusa-payment-razorpay",
     "directory": "medusa-payment-razorpay"
   },
   "files": [
