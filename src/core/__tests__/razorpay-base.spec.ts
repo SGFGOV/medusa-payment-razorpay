@@ -50,7 +50,12 @@ if (!isMocksEnabled()) {
   dotenv.config();
 }
 const container = {
-  logger: { error: console.error },
+  logger: { error: console.error, info: console.log },
+  cartService: {
+    retrieve(id: string): any {
+      return { id: "test-cart", billing_address: { phone: "12345" } };
+    },
+  },
   customerService: {
     retrieve: (id: string): any => {
       return { billing_address: { phone: "12345" } };
