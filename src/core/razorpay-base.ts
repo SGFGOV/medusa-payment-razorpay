@@ -195,7 +195,7 @@ abstract class RazorpayBase extends AbstractPaymentProcessor {
             cart.billing_address.phone ??
             (customer?.phone || customer?.billing_address?.phone);
           try {
-            razorpayCustomer = await this.razorpay_.customers.edit(
+            const updateRazorpayCustomer = await this.razorpay_.customers.edit(
               razorpayCustomer.id,
               {
                 email: email ?? razorpayCustomer.email,
@@ -207,15 +207,15 @@ abstract class RazorpayBase extends AbstractPaymentProcessor {
                   : razorpayCustomer.name,
               }
             );
+            return updateRazorpayCustomer;
           } catch (e) {
             this.logger.error(
               "unable to edit customer in the razorpay payment processor"
             );
           }
         }
-        return razorpayCustomer;
       }
-      return razorpayCustomer;
+      return razorpayCustomer; // returning un modifed razorpay customer
     } catch (e) {
       this.logger.warn(
         "unable to fetch customer in the razorpay payment processor"
@@ -337,6 +337,8 @@ abstract class RazorpayBase extends AbstractPaymentProcessor {
     });
     try {
       if (customer.metadata.razorpay_id) {
+        this.logger.info("the updating  existing customer  in razopay");
+
         razorpayCustomer = await this.editExistingRpCustomer(
           customer,
           cart,
@@ -348,26 +350,28 @@ abstract class RazorpayBase extends AbstractPaymentProcessor {
     }
     try {
       if (!razorpayCustomer) {
+        this.logger.info("the creating  customer  in razopay");
+
         razorpayCustomer = await this.createRazorpayCustomer(
           customer,
           cart,
           email,
           intentRequest
         );
-        return razorpayCustomer;
       }
     } catch (e) {
       // if customer already exists in razorpay but isn't associated with a customer in medsusa
       try {
+        this.logger.info("the relinking  customer  in razopay by polling");
+
         razorpayCustomer = await this.fetchOrPollForCustomer(customer);
-        return razorpayCustomer;
       } catch (e) {
         this.logger.error(
           "unable to poll customer customer in the razorpay payment processor"
         );
       }
     }
-    return undefined;
+    return razorpayCustomer;
   }
 
   async initiatePayment(
@@ -563,15 +567,26 @@ abstract class RazorpayBase extends AbstractPaymentProcessor {
   async updatePayment(
     context: PaymentProcessorContext
   ): Promise<PaymentProcessorError | PaymentProcessorSessionResponse | void> {
-    const { amount, customer, paymentSessionData, currency_code } = context;
-    const razorpayId = customer?.metadata?.razorpay_id;
+    const { amount, customer, paymentSessionData, currency_code, resource_id } =
+      context;
+    const cart = await this.cartService.retrieve(resource_id, {
+      relations: ["billing_address"],
+    });
+    const razorpayId =
+      customer?.metadata?.razorpay_id ||
+      (customer?.metadata as any)?.razopay.rp_customer_id;
 
     if (!customer) {
       return;
     }
 
     if (razorpayId !== (paymentSessionData?.customer as any)?.id) {
-      if (!(customer?.billing_address?.phone || customer?.phone)) {
+      const phone =
+        cart?.billing_address?.phone ??
+        customer?.phone ??
+        customer?.billing_address?.phone;
+
+      if (!phone) {
         throw new MedusaError(
           MedusaError.Types.PAYMENT_AUTHORIZATION_ERROR,
           "Phone number not found in context",
