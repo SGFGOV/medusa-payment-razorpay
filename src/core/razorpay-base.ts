@@ -182,7 +182,7 @@ abstract class RazorpayBase extends AbstractPaymentProcessor {
 
     try {
       razorpayCustomer = await this.razorpay_.customers.fetch(
-        intentRequest.notes.customer_id as string
+        intentRequest.notes.razorpay_id as string
       );
       // edit the customer
       if (razorpayCustomer) {
@@ -249,7 +249,7 @@ abstract class RazorpayBase extends AbstractPaymentProcessor {
       };
       razorpayCustomer = await this.razorpay_.customers.create(customerParams);
 
-      intentRequest.notes!.customer_id = razorpayCustomer?.id;
+      intentRequest.notes!.razorpay_id = razorpayCustomer?.id;
       if (customer && cart.customer_id) {
         await this.updateRazorpayMetadatainCustomer(
           customer,
@@ -314,7 +314,7 @@ abstract class RazorpayBase extends AbstractPaymentProcessor {
             .rp_customer_id as string
         );
       } else {
-        razorpayCustomer = await this.fetchOrPollForCustomer(customer);
+        razorpayCustomer = await this.pollAndRetrieveCustomer(customer);
       }
       return razorpayCustomer;
     } catch (e) {
@@ -336,25 +336,28 @@ abstract class RazorpayBase extends AbstractPaymentProcessor {
       relations: ["billing_address"],
     });
     try {
-      razorpayCustomer = await this.editExistingRpCustomer(
-        customer,
-        cart,
-        intentRequest
-      );
-      return razorpayCustomer;
+      if (customer.metadata.razorpay_id) {
+        razorpayCustomer = await this.editExistingRpCustomer(
+          customer,
+          cart,
+          intentRequest
+        );
+      }
     } catch (e) {
       this.logger.info("the customer doesn't exist in razopay");
     }
     try {
-      razorpayCustomer = await this.createRazorpayCustomer(
-        customer,
-        cart,
-        email,
-        intentRequest
-      );
-      return razorpayCustomer;
+      if (!razorpayCustomer) {
+        razorpayCustomer = await this.createRazorpayCustomer(
+          customer,
+          cart,
+          email,
+          intentRequest
+        );
+        return razorpayCustomer;
+      }
     } catch (e) {
-      // if customer already exists in razorpay but isn't associated with a customer in medsus
+      // if customer already exists in razorpay but isn't associated with a customer in medsusa
       try {
         razorpayCustomer = await this.fetchOrPollForCustomer(customer);
         return razorpayCustomer;
@@ -406,6 +409,8 @@ abstract class RazorpayBase extends AbstractPaymentProcessor {
       try {
         if (razorpayCustomer) {
           session_data = await this.razorpay_.orders.create(intentRequest);
+        } else {
+          this.logger.error("unable to find razorpay customer");
         }
       } catch (e) {
         return this.buildError(
@@ -423,7 +428,7 @@ abstract class RazorpayBase extends AbstractPaymentProcessor {
         ? undefined
         : {
             customer_metadata: {
-              razorpay_id: intentRequest.notes!.customer_id,
+              razorpay_id: intentRequest.notes!.razorpay_id,
             },
           },
     };
