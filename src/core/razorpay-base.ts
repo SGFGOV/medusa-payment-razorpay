@@ -178,7 +178,10 @@ abstract class RazorpayBase extends AbstractPaymentProcessor {
   ): Promise<Customers.RazorpayCustomer | undefined> {
     let razorpayCustomer: Customers.RazorpayCustomer;
 
-    intentRequest.notes!.razorpay_id = customer.metadata.razorpay_id as string;
+    const razorpay_id =
+      (customer.metadata.razorpay_id as string) ||
+      (customer.metadata as any).razorpay.rp_customer_id;
+    intentRequest.notes!.razorpay_id = razorpay_id;
 
     try {
       razorpayCustomer = await this.razorpay_.customers.fetch(
@@ -190,7 +193,7 @@ abstract class RazorpayBase extends AbstractPaymentProcessor {
           const email = cart.email ?? customer.email;
           const editName = `${
             cart.billing_address.first_name ?? customer.first_name
-          } || ${cart.billing_address.last_name ?? customer.last_name}`;
+          } ${cart.billing_address.last_name ?? customer.last_name}`;
           const editPhone =
             cart.billing_address.phone ??
             (customer?.phone || customer?.billing_address?.phone);
@@ -199,12 +202,8 @@ abstract class RazorpayBase extends AbstractPaymentProcessor {
               razorpayCustomer.id,
               {
                 email: email ?? razorpayCustomer.email,
-                contact: editPhone
-                  ? (customer?.phone ?? customer?.billing_address?.phone)!
-                  : razorpayCustomer.contact!,
-                name: editName
-                  ? `${customer?.first_name ?? ""} ${customer?.last_name ?? ""}`
-                  : razorpayCustomer.name,
+                contact: editPhone ?? razorpayCustomer.contact!,
+                name: editName ?? razorpayCustomer.name,
               }
             );
             return updateRazorpayCustomer;
@@ -234,7 +233,10 @@ abstract class RazorpayBase extends AbstractPaymentProcessor {
     try {
       const customerParams: Customers.RazorpayCustomerCreateRequestBody = {
         email,
-        contact: cart?.billing_address?.phone ?? customer.phone ?? "",
+        contact:
+          cart?.billing_address?.phone ??
+          customer.phone ??
+          customer?.billing_address?.phone,
         gstin:
           (cart?.billing_address as any)?.gstin ??
           (customer?.metadata?.gstin as string) ??
@@ -332,44 +334,52 @@ abstract class RazorpayBase extends AbstractPaymentProcessor {
     cartId: string
   ): Promise<Customers.RazorpayCustomer | undefined> {
     let razorpayCustomer: Customers.RazorpayCustomer | undefined;
-    const cart = await this.cartService.retrieve(cartId, {
-      relations: ["billing_address"],
-    });
     try {
-      if (customer.metadata.razorpay_id) {
-        this.logger.info("the updating  existing customer  in razopay");
-
-        razorpayCustomer = await this.editExistingRpCustomer(
-          customer,
-          cart,
-          intentRequest
-        );
-      }
-    } catch (e) {
-      this.logger.info("the customer doesn't exist in razopay");
-    }
-    try {
-      if (!razorpayCustomer) {
-        this.logger.info("the creating  customer  in razopay");
-
-        razorpayCustomer = await this.createRazorpayCustomer(
-          customer,
-          cart,
-          email,
-          intentRequest
-        );
-      }
-    } catch (e) {
-      // if customer already exists in razorpay but isn't associated with a customer in medsusa
+      const cart = await this.cartService.retrieve(cartId, {
+        relations: ["billing_address", "customer"],
+      });
       try {
-        this.logger.info("the relinking  customer  in razopay by polling");
+        if (
+          customer.metadata.razorpay_id ||
+          (customer.metadata as any).razorpay.rp_customer_id
+        ) {
+          this.logger.info("the updating  existing customer  in razopay");
 
-        razorpayCustomer = await this.fetchOrPollForCustomer(customer);
+          razorpayCustomer = await this.editExistingRpCustomer(
+            customer,
+            cart,
+            intentRequest
+          );
+        }
       } catch (e) {
-        this.logger.error(
-          "unable to poll customer customer in the razorpay payment processor"
-        );
+        this.logger.info("the customer doesn't exist in razopay");
       }
+      try {
+        if (!razorpayCustomer) {
+          this.logger.info("the creating  customer  in razopay");
+
+          razorpayCustomer = await this.createRazorpayCustomer(
+            customer,
+            cart,
+            email,
+            intentRequest
+          );
+        }
+      } catch (e) {
+        // if customer already exists in razorpay but isn't associated with a customer in medsusa
+        try {
+          this.logger.info("the relinking  customer  in razopay by polling");
+
+          razorpayCustomer = await this.fetchOrPollForCustomer(customer);
+        } catch (e) {
+          this.logger.error(
+            "unable to poll customer customer in the razorpay payment processor"
+          );
+        }
+      }
+      return razorpayCustomer;
+    } catch (e) {
+      this.logger.error("unable to retrieve customer from cart");
     }
     return razorpayCustomer;
   }
