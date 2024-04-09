@@ -190,7 +190,7 @@ abstract class RazorpayBase extends AbstractPaymentProcessor {
       // edit the customer
       if (razorpayCustomer) {
         {
-          const email = cart.email ?? customer.email;
+          const editEmail = cart.email ?? customer.email;
           const editName = `${
             cart.billing_address.first_name ?? customer.first_name
           } ${cart.billing_address.last_name ?? customer.last_name}`;
@@ -201,7 +201,7 @@ abstract class RazorpayBase extends AbstractPaymentProcessor {
             const updateRazorpayCustomer = await this.razorpay_.customers.edit(
               razorpayCustomer.id,
               {
-                email: email ?? razorpayCustomer.email,
+                email: editEmail ?? razorpayCustomer.email,
                 contact: editPhone ?? razorpayCustomer.contact!,
                 name: editName ?? razorpayCustomer.name,
               }
