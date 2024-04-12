@@ -80,146 +80,119 @@ like below
 
 
 ````
-import { useCheckout } from "@lib/context/checkout-context"
-import { PaymentSession } from "@medusajs/medusa"
-import Button from "@modules/common/components/button"
+import { Button } from "@medusajs/ui"
+import { Cart,PaymentSession } from "@medusajs/medusa"
 import Spinner from "@modules/common/icons/spinner"
-import { useCart, useUpdatePaymentSession } from "medusa-react"
-import { useCallback, useEffect, useState } from "react"
+import React, { useCallback, useState } from "react"
 import useRazorpay, { RazorpayOptions } from "react-razorpay"
 
-export const RazorpayPaymentButton = ({
-    session,
-    notReady,
-  }: {
-    session: PaymentSession
-    notReady: boolean
-  }) => {
-    const [disabled, setDisabled] = useState(false)
-    const [submitting, setSubmitting] = useState(false)
-    const [errorMessage, setErrorMessage] = useState<string | undefined>(
-      undefined
-    )
-  
-    const { cart } = useCart()
-    const { onPaymentCompleted } = useCheckout()
-    
-  
-    const [Razorpay, isLoaded] = useRazorpay();
-    
-    
-    useEffect(() => {
-      if (!Razorpay) {
-        setDisabled(true)
-      } else {
-        setDisabled(false)
-      }
-    }, [Razorpay])
-  
-    
-        
-    
-        
-  const handlePayment = useCallback(() => {
-  
-  
-    if (!Razorpay || !cart) {
-      return
-      }
-  
-    if(cart) {
-        const amountToBePaid  = cart.total!
-          let options:RazorpayOptions = {
-              "key": process.env.NEXT_PUBLIC_RAZORPAY_KEY!,
-              "amount": amountToBePaid.toString(), // 2000 paise = INR 20, amount in paisa
-              "name": process.env.NEXT_PUBLIC_SHOP_NAME!,
-              "description": process.env.NEXT_PUBLIC_SHOP_DESCRIPTION,
-              "order_id":session.data.id as string,
-              "currency":(session.data.currency as string).toUpperCase(),
-              modal: {
-                backdropclose:true,
-                escape: true,
-                handleback: true,
-                confirm_close: true,
-                ondismiss: () => {
-                    setSubmitting(false)
-                },
-                animation: true,
-            },
-              handler:(args)=>{
-            
-                onPaymentCompleted()
-              },
-              "prefill":{
-                  "name":cart.billing_address.first_name + " "+ cart.billing_address.last_name,
-                  "email":cart.email,
-                  "contact":cart.billing_address.phone!
-              },
-              "notes": {
-                "address": cart.billing_address,
-                "order_notes":session.data.notes
-              },
-              callback_url:`${process.env.MEDUSA_BACKEND_URL}/hook/razorpay`,
-              "theme": {
-                "color":  process.env.NEXT_PUBLIC_SHOP_COLOUR ?? "00000"
-              }
-             }; 
-            let rzp = new Razorpay(options);
-            rzp.on("payment.failed", function (response:any) {
-                setErrorMessage(JSON.stringify(response.error))
-            })
-            rzp.on("payment.authorized", function (response:any) {
-               
-            })
-            rzp.on("payment.captured", function (response:any) {
-                
-             }
-            )
-            rzp.open();
-    }
-    },[Razorpay, cart, onPaymentCompleted, session.data.currency, session.data.id, session.data.notes]);
+const RazorpayPaymentButton = ({
+  session,
+  notReady,
+  cart
+}: {
+  session: PaymentSession
+  notReady: boolean
+  cart: Omit<Cart, "refundable_amount" | "refunded_total">
+}) => {
+  const [disabled, setDisabled] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [errorMessage, setErrorMessage] = useState<string | undefined>(undefined)
+  const [Razorpay] = useRazorpay();
 
-    useEffect(() => {
-        if (isLoaded) {
-        //  handlePayment();
-        }
-      }, [isLoaded, handlePayment])
-    return (
-      <>
-        <Button
-          disabled={submitting || disabled || notReady}
-          onClick={handlePayment}
-        >
-          {submitting ? <Spinner /> : "Checkout"}
-        </Button>
-        {errorMessage && (
-          <div className="text-red-500 text-small-regular mt-2">
-            {errorMessage}
-          </div>
-        )}
-      </>
-    )
+  const orderData = session.data as Record<string, string>
+  const onPaymentCompleted = async () => {
+    await placeOrder().catch(() => {
+      setErrorMessage("An error occurred, please try again.")
+      setSubmitting(false)
+    })
   }
-  
-````
+
+
+  const handlePayment = useCallback(() => {
+    const options: RazorpayOptions = {
+      callback_url: `${process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL}/razorpay/hooks`,
+      key: process.env.NEXT_PUBLIC_RAZORPAY_KEY ?? '',
+      amount: session.amount.toString(),
+      order_id: orderData.id,
+      currency: cart.region.currency_code.toLocaleUpperCase(),
+      name: process.env.COMPANY_NAME ?? "your company name ",
+      description: `Order number ${orderData.id}`,
+
+      image: "https://example.com/your_logo",
+      modal: {
+        backdropclose: true,
+        escape: true,
+        handleback: true,
+        confirm_close: true,
+        ondismiss: () => {
+          setSubmitting(false)
+        },
+        animation: true,
+      },
+      handler: async (args) => {
+        onPaymentCompleted()
+      },
+      "prefill": {
+        "name": cart?.billing_address.first_name + " " + cart?.billing_address.last_name,
+        "email": cart?.email,
+        "contact": (cart?.shipping_address?.phone) ?? undefined
+      },
+      "notes": {
+        "address": cart?.billing_address,
+        "order_notes": session.data.notes
+      },
+      
+    };
+
+    const razorpay = new Razorpay(options);
+    razorpay.open();
+    razorpay.on("payment.failed", function (response: any) {
+      setErrorMessage(JSON.stringify(response.error))
+    })
+    razorpay.on("payment.authorized", function (response: any) {
+
+    })
+    razorpay.on("payment.captured", function (response: any) {
+
+    }
+    )
+  }, [Razorpay]);
+  return (
+    <>
+      <Button
+        disabled={submitting || notReady}
+        onClick={handlePayment}
+      >
+        {submitting ? <Spinner /> : "Checkout"}
+      </Button>
+      {errorMessage && (
+        <div className="text-red-500 text-small-regular mt-2">
+          {errorMessage}
+        </div>
+      )}
+    </>
+  )
+}
+`````
 
 Step 3. 
 
-nextjs-starter-medusa/src/modules/checkout/components/payment-container/index.tsx
+nextjs-starter-medusa/src/lib/constants.tsx
 add
 
 ```
 
-razorpay: {
+  razorpay: {
     title: "Razorpay",
-    description: "Razorpay payment gateway",
+    icon: <CreditCard />,
   },
-````
 
-and add into the payment element
+````
+step 4.add into the payment element <next-starter>/src/modules/checkout/components/payment-button/index.tsx
 
 case "razorpay":
-        return <></>
+         return <RazorpayPaymentButton session={paymentSession} notReady={notReady} cart={cart} />
 
 
 Step 4. Add enviroment variables in the client
