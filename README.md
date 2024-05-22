@@ -55,7 +55,7 @@ const plugins = [
          key_id: process.env.RAZORPAY_ID,
                 key_secret: process.env.RAZORPAY_SECRET,
                 razorpay_account: process.env.RAZORPAY_ACCOUNT,                
-                automatic_expiry_period: 30, /*any value between 12minuts and 30 days expressed in minutes*/
+                automatic_expiry_period: 30, /*any value between 12 minutes and 30 days expressed in minutes*/
                 manual_expiry_period: 20,
                 refund_speed: "normal", 
                 webhook_secret: process.env.RAZORPAY_SECRET,
@@ -66,7 +66,7 @@ const plugins = [
 ## Client side configuration
 
 
-For the nextjs start you need to  make the following changes 
+For the NextJs start you need to  make the following changes 
 
 1. Install package to your next starter. This just makes it easier, importing all the scripts implicitly
 ```

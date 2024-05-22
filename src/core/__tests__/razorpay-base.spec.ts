@@ -151,7 +151,7 @@ describe("RazorpayTest", () => {
       );
 
       if (isMocksEnabled()) {
-        expect(RazorpayMock.customers.create).toHaveBeenCalled();
+        expect(RazorpayMock.orders.create).toHaveBeenCalled();
 
         /* expect(RazorpayMock.customers.create).toHaveBeenCalledWith({
         email: initiatePaymentContextWithExistingCustomer.email,
