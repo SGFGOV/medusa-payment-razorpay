@@ -80,11 +80,52 @@ like below
 
 
 ````
+"use client"
+
+import { Cart, PaymentSession } from "@medusajs/medusa"
 import { Button } from "@medusajs/ui"
-import { Cart,PaymentSession } from "@medusajs/medusa"
-import Spinner from "@modules/common/icons/spinner"
+import { OnApproveActions, OnApproveData } from "@paypal/paypal-js"
+import { PayPalButtons, usePayPalScriptReducer } from "@paypal/react-paypal-js"
+import { useElements, useStripe } from "@stripe/react-stripe-js"
+import { placeOrder } from "@modules/checkout/actions"
 import React, { useCallback, useState } from "react"
+import ErrorMessage from "../error-message"
+import Spinner from "@modules/common/icons/spinner"
+
 import useRazorpay, { RazorpayOptions } from "react-razorpay"
+
+type PaymentButtonProps = {
+  cart: Omit<Cart, "refundable_amount" | "refunded_total">,
+  'data-testid': string
+}
+
+const PaymentButton: React.FC<PaymentButtonProps> = ({ cart, 'data-testid': dataTestId }) => {
+  const notReady =
+    !cart ||
+    !cart.shipping_address ||
+    !cart.billing_address ||
+    !cart.email ||
+    cart.shipping_methods.length < 1
+      ? true
+      : false
+
+  const paymentSession = cart.payment_session as PaymentSession
+
+
+  switch (paymentSession.provider_id) {
+    case "razorpay":
+      return <RazorpayPaymentButton notReady={notReady} cart={cart} session={paymentSession} data-testid={dataTestId} />
+    case "manual":
+      return <ManualTestPaymentButton notReady={notReady} data-testid={dataTestId} />
+    case "paypal":
+      return <PayPalPaymentButton notReady={notReady} cart={cart} data-testid={dataTestId} />
+    default:
+      return <Button disabled>Select a payment method</Button>
+  }
+}
+
+
+
 
 const RazorpayPaymentButton = ({
   session,
@@ -116,7 +157,7 @@ const RazorpayPaymentButton = ({
       amount: session.amount.toString(),
       order_id: orderData.id,
       currency: cart.region.currency_code.toLocaleUpperCase(),
-      name: process.env.COMPANY_NAME ?? "your company name ",
+      name: process.env.COMPANY_NAME ?? "ShopNTrolly ",
       description: `Order number ${orderData.id}`,
 
       image: "https://example.com/your_logo",
@@ -134,9 +175,9 @@ const RazorpayPaymentButton = ({
         onPaymentCompleted()
       },
       "prefill": {
-        "name": cart?.billing_address.first_name + " " + cart?.billing_address.last_name,
+        "name": cart?.billing_address.first_name + " " + cart?.billing_address.last_name  ,
         "email": cart?.email,
-        "contact": (cart?.shipping_address?.phone) ?? undefined
+        "contact":( cart?.billing_address?.phone || cart?.shipping_address?.phone) as string
       },
       "notes": {
         "address": cart?.billing_address,
@@ -164,7 +205,7 @@ const RazorpayPaymentButton = ({
         disabled={submitting || notReady}
         onClick={handlePayment}
       >
-        {submitting ? <Spinner /> : "Checkout"}
+        {submitting ? <Spinner /> : "Place Your Order"}
       </Button>
       {errorMessage && (
         <div className="text-red-500 text-small-regular mt-2">
@@ -174,22 +215,23 @@ const RazorpayPaymentButton = ({
     </>
   )
 }
+
+export default PaymentButton
+
 `````
 
 Step 3. 
 
 nextjs-starter-medusa/src/lib/constants.tsx
 add
-
+ 
 ```
-
-  razorpay: {
+ razorpay: {
     title: "Razorpay",
     icon: <CreditCard />,
   },
-
 ````
-step 4.add into the payment element <next-starter>/src/modules/checkout/components/payment-button/index.tsx
+
 
 case "razorpay":
          return <RazorpayPaymentButton session={paymentSession} notReady={notReady} cart={cart} />
