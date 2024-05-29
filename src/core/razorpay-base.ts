@@ -646,13 +646,7 @@ abstract class RazorpayBase extends AbstractPaymentProcessor {
         customerPhone =
           refreshedCustomer?.phone ?? refreshedCustomer?.billing_address?.phone;
         if (!refreshedCustomer.billing_address) {
-          return this.buildError(
-            "no customer billing found",
-            new Error(
-              "no customer billing found " +
-                refreshedCustomer.billing_address_id
-            )
-          );
+          this.logger.warn("no customer billing found");
         }
       } catch {
         return this.buildError(
