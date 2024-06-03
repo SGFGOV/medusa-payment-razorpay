@@ -30,6 +30,7 @@ import {
   retrievePaymentSuccessData,
   updatePaymentContextWithDifferentAmount,
   updatePaymentDataWithoutAmountData,
+  updatePaymentDataWithoutAmountDataNoNotes,
 } from "../__fixtures__/data";
 import {
   RAZORPAY_ID,
@@ -50,7 +51,7 @@ if (!isMocksEnabled()) {
   dotenv.config();
 }
 const container = {
-  logger: { error: console.error, info: console.log },
+  logger: { error: console.error, info: console.log, warn: console.log },
   cartService: {
     retrieve(id: string): any {
       return { id: "test-cart", billing_address: { phone: "12345" } };
@@ -693,13 +694,41 @@ describe("RazorpayTest", () => {
       jest.clearAllMocks();
     });
 
-    it("should succeed to update the payment data", async () => {
+    it("should fail to update the payment data", async () => {
+      const data = isMocksEnabled()
+        ? { data: updatePaymentDataWithoutAmountDataNoNotes }
+        : { ...updatePaymentDataWithoutAmountDataNoNotes };
+
       const result = await razorpayTest.updatePaymentData(
         isMocksEnabled()
           ? updatePaymentDataWithoutAmountData.sessionId
           : (testPaymentSession.id as any),
         {
-          ...updatePaymentDataWithoutAmountData,
+          ...data,
+          sessionId: isMocksEnabled() ? undefined : testPaymentSession.id,
+        }
+      );
+      if (isMocksEnabled()) {
+        expect(RazorpayMock.orders.edit).toHaveBeenCalledTimes(0);
+      }
+    }, 60e6);
+
+    it("should succeed to update the payment data", async () => {
+      const data = isMocksEnabled()
+        ? {
+            data: {
+              ...updatePaymentDataWithoutAmountData,
+              notes: { updated: true },
+            },
+          }
+        : { ...updatePaymentDataWithoutAmountData };
+
+      const result = await razorpayTest.updatePaymentData(
+        isMocksEnabled()
+          ? updatePaymentDataWithoutAmountData.sessionId
+          : (testPaymentSession.id as any),
+        {
+          ...data,
           sessionId: isMocksEnabled() ? undefined : testPaymentSession.id,
         }
       );
