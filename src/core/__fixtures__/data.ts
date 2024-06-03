@@ -19,6 +19,7 @@ export const initiatePaymentContextWithExistingCustomer = {
   customer: { last_name: "test", first_name: "customer", phone: "9876542321" },
   context: {},
   paymentSessionData: {},
+  metadata: {},
 };
 
 export const initiatePaymentContextWithExistingCustomerRazorpayId = {
@@ -225,16 +226,22 @@ export const updatePaymentContextFailWithDifferentAmount = {
 };
 
 export const updatePaymentDataWithAmountData = {
-  sessionId: RAZORPAY_ID,
+  sessionId: RAZORPAY_ID ?? "test",
   amount: 2000,
 };
 
 export const updatePaymentDataWithoutAmountData = {
-  sessionId: RAZORPAY_ID,
-
+  sessionId: RAZORPAY_ID ?? "test",
+  id: RAZORPAY_ID ?? "test", // /duplication needs to be fixed
   /** only notes can be updated */
   notes: {
     customProp: "test",
     test: "test-string",
   },
+};
+
+export const updatePaymentDataWithoutAmountDataNoNotes = {
+  sessionId: RAZORPAY_ID ?? "test",
+  id: RAZORPAY_ID ?? "test", // /duplication needs to be fixed
+  /** only notes can be updated */
 };

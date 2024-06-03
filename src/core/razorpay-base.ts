@@ -188,8 +188,8 @@ abstract class RazorpayBase extends AbstractPaymentProcessor {
 
     const razorpay_id =
       intentRequest.notes?.razorpay_id ||
-      (customer.metadata.razorpay_id as string) ||
-      (customer.metadata as any).razorpay?.rp_customer_id;
+      (customer.metadata?.razorpay_id as string) ||
+      (customer.metadata as any)?.razorpay?.rp_customer_id;
     try {
       razorpayCustomer = await this.razorpay_.customers.fetch(razorpay_id);
     } catch (e) {
@@ -336,7 +336,7 @@ abstract class RazorpayBase extends AbstractPaymentProcessor {
     let razorpayCustomer: Customers.RazorpayCustomer | undefined;
     try {
       const rp_customer_id = (
-        customer.metadata.razorpay as Record<string, string>
+        customer.metadata?.razorpay as Record<string, string>
       )?.rp_customer_id;
       if (rp_customer_id) {
         razorpayCustomer = await this.razorpay_.customers.fetch(rp_customer_id);
@@ -364,12 +364,14 @@ abstract class RazorpayBase extends AbstractPaymentProcessor {
         relations: ["billing_address", "customer"],
       });
       const razorpay_id =
-        customer.metadata.razorpay_id ||
-        (customer.metadata as any).razorpay?.rp_customer_id ||
+        customer.metadata?.razorpay_id ||
+        (customer.metadata as any)?.razorpay?.rp_customer_id ||
+        cart.customer?.metadata?.razorpay_id ||
+        (cart.customer?.metadata as any)?.razorpay?.rp_customer_id ||
         intentRequest.notes.razorpay_id;
       try {
         if (razorpay_id) {
-          this.logger.info("the updating  existing customer  in razopay");
+          this.logger.info("the updating  existing customer  in razorpay");
 
           razorpayCustomer = await this.editExistingRpCustomer(
             customer,
@@ -730,9 +732,10 @@ abstract class RazorpayBase extends AbstractPaymentProcessor {
         const paymentSession = await this.razorpay_.payments.fetch(
           (data.data as Record<string, any>).id as string
         );
-        if (data.notes) {
+        if (data.notes || (data.data as any)?.notes) {
+          const notes = data.notes || (data.data as any)?.notes;
           const result = (await this.razorpay_.orders.edit(sessionId, {
-            notes: { ...paymentSession.notes, ...data.notes },
+            notes: { ...paymentSession.notes, ...notes },
           })) as unknown as PaymentProcessorSessionResponse["session_data"];
           return result;
         } else {
