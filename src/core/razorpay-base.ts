@@ -688,14 +688,18 @@ abstract class RazorpayBase extends AbstractPaymentProcessor {
 
       try {
         const id = paymentSessionData.id as string;
-        const sessionOrderData = (await this.razorpay_.orders.fetch(
-          id
-        )) as Partial<Orders.RazorpayOrder>;
-        delete sessionOrderData.id;
-        delete sessionOrderData.created_at;
-
+        let sessionOrderData: Partial<Orders.RazorpayOrder> = {
+          currency: "INR",
+        };
+        if (id) {
+          sessionOrderData = (await this.razorpay_.orders.fetch(
+            id
+          )) as Partial<Orders.RazorpayOrder>;
+          delete sessionOrderData.id;
+          delete sessionOrderData.created_at;
+        }
         context.currency_code =
-          currency_code?.toUpperCase() ?? sessionOrderData.currency!;
+          currency_code?.toUpperCase() ?? sessionOrderData?.currency ?? "INR";
         const newPaymentSessionOrder = (await this.initiatePayment(
           context
         )) as PaymentProcessorSessionResponse;
