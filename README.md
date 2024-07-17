@@ -73,18 +73,59 @@ For the NextJs start you need to  make the following changes
 yarn add react-razorpay
 
 ```
-2. Create a button for Razorpay <next-starter>/src/modules/checkout/components/payment-button/razorpay-payment-button.tsx
+2. Create a button for Razorpay <next-starter>/src/modules/checkout/components/payment-button/index.tsx
 
 like below
 
 
 
 ````
+"use client"
+
+import { Cart, PaymentSession } from "@medusajs/medusa"
 import { Button } from "@medusajs/ui"
-import { Cart,PaymentSession } from "@medusajs/medusa"
-import Spinner from "@modules/common/icons/spinner"
+import { OnApproveActions, OnApproveData } from "@paypal/paypal-js"
+import { PayPalButtons, usePayPalScriptReducer } from "@paypal/react-paypal-js"
+import { useElements, useStripe } from "@stripe/react-stripe-js"
+import { placeOrder } from "@modules/checkout/actions"
 import React, { useCallback, useState } from "react"
+import ErrorMessage from "../error-message"
+import Spinner from "@modules/common/icons/spinner"
+
 import useRazorpay, { RazorpayOptions } from "react-razorpay"
+
+type PaymentButtonProps = {
+  cart: Omit<Cart, "refundable_amount" | "refunded_total">,
+  'data-testid': string
+}
+
+const PaymentButton: React.FC<PaymentButtonProps> = ({ cart, 'data-testid': dataTestId }) => {
+  const notReady =
+    !cart ||
+    !cart.shipping_address ||
+    !cart.billing_address ||
+    !cart.email ||
+    cart.shipping_methods.length < 1
+      ? true
+      : false
+
+  const paymentSession = cart.payment_session as PaymentSession
+
+
+  switch (paymentSession.provider_id) {
+    case "razorpay":
+      return <RazorpayPaymentButton notReady={notReady} cart={cart} session={paymentSession} data-testid={dataTestId} />
+    case "manual":
+      return <ManualTestPaymentButton notReady={notReady} data-testid={dataTestId} />
+    case "paypal":
+      return <PayPalPaymentButton notReady={notReady} cart={cart} data-testid={dataTestId} />
+    default:
+      return <Button disabled>Select a payment method</Button>
+  }
+}
+
+
+
 
 const RazorpayPaymentButton = ({
   session,
@@ -116,7 +157,7 @@ const RazorpayPaymentButton = ({
       amount: session.amount.toString(),
       order_id: orderData.id,
       currency: cart.region.currency_code.toLocaleUpperCase(),
-      name: process.env.COMPANY_NAME ?? "your company name ",
+      name: process.env.COMPANY_NAME ?? "ShopNTrolly ",
       description: `Order number ${orderData.id}`,
 
       image: "https://example.com/your_logo",
@@ -134,9 +175,9 @@ const RazorpayPaymentButton = ({
         onPaymentCompleted()
       },
       "prefill": {
-        "name": cart?.billing_address.first_name + " " + cart?.billing_address.last_name,
+        "name": cart?.billing_address.first_name + " " + cart?.billing_address.last_name  ,
         "email": cart?.email,
-        "contact": (cart?.shipping_address?.phone) ?? undefined
+        "contact":( cart?.billing_address?.phone || cart?.shipping_address?.phone) as string
       },
       "notes": {
         "address": cart?.billing_address,
@@ -164,7 +205,7 @@ const RazorpayPaymentButton = ({
         disabled={submitting || notReady}
         onClick={handlePayment}
       >
-        {submitting ? <Spinner /> : "Checkout"}
+        {submitting ? <Spinner /> : "Place Your Order"}
       </Button>
       {errorMessage && (
         <div className="text-red-500 text-small-regular mt-2">
@@ -174,26 +215,259 @@ const RazorpayPaymentButton = ({
     </>
   )
 }
+
+export default PaymentButton
+
 `````
 
 Step 3. 
 
 nextjs-starter-medusa/src/lib/constants.tsx
 add
-
+ 
 ```
-
-  razorpay: {
+ razorpay: {
     title: "Razorpay",
     icon: <CreditCard />,
   },
-
 ````
-step 4.add into the payment element <next-starter>/src/modules/checkout/components/payment-button/index.tsx
 
-case "razorpay":
-         return <RazorpayPaymentButton session={paymentSession} notReady={notReady} cart={cart} />
+step 3. Go to  <next-starter>/src/modules/checkout/action.ts/
+add update customer to the setAddresses func (for fixing no customer billiing found error))
+```
+"use server"
 
+import { cookies } from "next/headers"
+
+import {
+  addShippingMethod,
+  completeCart,
+  deleteDiscount,
+  setPaymentSession,
+  updateCart,
+  updateCustomer,
+} from "@lib/data"
+import {
+  GiftCard,
+  StorePostCartsCartReq,
+  StorePostCustomersCustomerReq,
+} from "@medusajs/medusa"
+import { revalidateTag } from "next/cache"
+import { redirect } from "next/navigation"
+
+export async function cartUpdate(data: StorePostCartsCartReq) {
+  const cartId = cookies().get("_medusa_cart_id")?.value
+
+  if (!cartId) return "No cartId cookie found"
+
+  try {
+    await updateCart(cartId, data)
+    revalidateTag("cart")
+  } catch (error: any) {
+    return error.toString()
+  }
+}
+
+export async function applyDiscount(code: string) {
+  const cartId = cookies().get("_medusa_cart_id")?.value
+
+  if (!cartId) return "No cartId cookie found"
+
+  try {
+    await updateCart(cartId, { discounts: [{ code }] }).then(() => {
+      revalidateTag("cart")
+    })
+  } catch (error: any) {
+    throw error
+  }
+}
+
+export async function applyGiftCard(code: string) {
+  const cartId = cookies().get("_medusa_cart_id")?.value
+
+  if (!cartId) return "No cartId cookie found"
+
+  try {
+    await updateCart(cartId, { gift_cards: [{ code }] }).then(() => {
+      revalidateTag("cart")
+    })
+  } catch (error: any) {
+    throw error
+  }
+}
+
+export async function removeDiscount(code: string) {
+  const cartId = cookies().get("_medusa_cart_id")?.value
+
+  if (!cartId) return "No cartId cookie found"
+
+  try {
+    await deleteDiscount(cartId, code)
+    revalidateTag("cart")
+  } catch (error: any) {
+    throw error
+  }
+}
+
+export async function removeGiftCard(
+  codeToRemove: string,
+  giftCards: GiftCard[]
+) {
+  const cartId = cookies().get("_medusa_cart_id")?.value
+
+  if (!cartId) return "No cartId cookie found"
+
+  try {
+    await updateCart(cartId, {
+      gift_cards: [...giftCards]
+        .filter((gc) => gc.code !== codeToRemove)
+        .map((gc) => ({ code: gc.code })),
+    }).then(() => {
+      revalidateTag("cart")
+    })
+  } catch (error: any) {
+    throw error
+  }
+}
+
+export async function submitDiscountForm(
+  currentState: unknown,
+  formData: FormData
+) {
+  const code = formData.get("code") as string
+
+  try {
+    await applyDiscount(code).catch(async (err) => {
+      await applyGiftCard(code)
+    })
+    return null
+  } catch (error: any) {
+    return error.toString()
+  }
+}
+
+export async function setAddresses(currentState: unknown, formData: FormData) {
+  if (!formData) return "No form data received"
+
+  const cartId = cookies().get("_medusa_cart_id")?.value
+
+  if (!cartId) return { message: "No cartId cookie found" }
+
+  const data = {
+    shipping_address: {
+      first_name: formData.get("shipping_address.first_name"),
+      last_name: formData.get("shipping_address.last_name"),
+      address_1: formData.get("shipping_address.address_1"),
+      address_2: "",
+      company: formData.get("shipping_address.company"),
+      postal_code: formData.get("shipping_address.postal_code"),
+      city: formData.get("shipping_address.city"),
+      country_code: formData.get("shipping_address.country_code"),
+      province: formData.get("shipping_address.province"),
+      phone: formData.get("shipping_address.phone"),
+    },
+    email: formData.get("email"),
+  } as StorePostCartsCartReq
+
+  const sameAsBilling = formData.get("same_as_billing")
+
+  if (sameAsBilling === "on") data.billing_address = data.shipping_address
+
+  if (sameAsBilling !== "on")
+    data.billing_address = {
+      first_name: formData.get("billing_address.first_name"),
+      last_name: formData.get("billing_address.last_name"),
+      address_1: formData.get("billing_address.address_1"),
+      address_2: "",
+      company: formData.get("billing_address.company"),
+      postal_code: formData.get("billing_address.postal_code"),
+      city: formData.get("billing_address.city"),
+      country_code: formData.get("billing_address.country_code"),
+      province: formData.get("billing_address.province"),
+      phone: formData.get("billing_address.phone"),
+    } as StorePostCartsCartReq
+
+  const customer = {
+    billing_address: {
+      first_name: formData.get("billing_address.first_name"),
+      last_name: formData.get("billing_address.last_name"),
+      company: formData.get("billing_address.company"),
+      address_1: formData.get("billing_address.address_1"),
+      address_2: formData.get("billing_address.address_2"),
+      city: formData.get("billing_address.city"),
+      postal_code: formData.get("billing_address.postal_code"),
+      province: formData.get("billing_address.province"),
+      country_code: formData.get("billing_address.country_code"),
+      phone: formData.get("billing_address.phone"),
+    },
+  } as StorePostCustomersCustomerReq
+
+  try {
+    await updateCart(cartId, data)
+    revalidateTag("cart")
+
+    await updateCustomer(customer).then(() => {
+      revalidateTag("customer")
+    })
+  } catch (error: any) {
+    return error.toString()
+  }
+
+  redirect(
+    `/${formData.get("shipping_address.country_code")}/checkout?step=delivery`
+  )
+}
+
+export async function setShippingMethod(shippingMethodId: string) {
+  const cartId = cookies().get("_medusa_cart_id")?.value
+
+  if (!cartId) throw new Error("No cartId cookie found")
+
+  try {
+    await addShippingMethod({ cartId, shippingMethodId })
+    revalidateTag("cart")
+  } catch (error: any) {
+    throw error
+  }
+}
+
+export async function setPaymentMethod(providerId: string) {
+  const cartId = cookies().get("_medusa_cart_id")?.value
+
+  if (!cartId) throw new Error("No cartId cookie found")
+
+  try {
+    const cart = await setPaymentSession({ cartId, providerId })
+    revalidateTag("cart")
+    return cart
+  } catch (error: any) {
+    throw error
+  }
+}
+
+export async function placeOrder() {
+  const cartId = cookies().get("_medusa_cart_id")?.value
+
+  if (!cartId) throw new Error("No cartId cookie found")
+
+  let cart
+
+  try {
+    cart = await completeCart(cartId)
+    revalidateTag("cart")
+  } catch (error: any) {
+    throw error
+  }
+
+  if (cart?.type === "order") {
+    const countryCode = cart.data.shipping_address?.country_code?.toLowerCase()
+    cookies().set("_medusa_cart_id", "", { maxAge: -1 })
+    redirect(`/${countryCode}/order/confirmed/${cart?.data.id}`)
+  }
+
+  return cart
+}
+```
 
 Step 4. Add enviroment variables in the client
 
