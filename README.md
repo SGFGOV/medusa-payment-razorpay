@@ -191,15 +191,26 @@ add
 ````
 step 4.add into the payment element <next-starter>/src/modules/checkout/components/payment-button/index.tsx
 
+first 
+```
+import import {RazorpayPaymentButton} from "./razorpay-payment-button"
+```
+then
+```
 case "razorpay":
          return <RazorpayPaymentButton session={paymentSession} notReady={notReady} cart={cart} />
+```
 
-
-Step 4. Add enviroment variables in the client
+Step 4. Add environment variables in the client
 
   NEXT_PUBLIC_RAZORPAY_KEY:<your razorpay key>
   NEXT_PUBLIC_SHOP_NAME:<your razorpay shop name>
   NEXT_PUBLIC_SHOP_DESCRIPTION: <your razorpayshop description>
+#### watch out
+Step 5. Caveat 
+the default starter template has an option which says use the same shipping and billing address
+please ensure you deselect this and enter the phone number manually in the billing section.
+
 
 ## Contributing
 
