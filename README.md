@@ -86,7 +86,7 @@ import Spinner from "@modules/common/icons/spinner"
 import React, { useCallback, useState } from "react"
 import useRazorpay, { RazorpayOptions } from "react-razorpay"
 
-const RazorpayPaymentButton = ({
+export const RazorpayPaymentButton = ({
   session,
   notReady,
   cart
