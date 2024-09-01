@@ -1,13 +1,17 @@
-import { NotificationService } from "medusa-interfaces";
+
 import Razorpay from "razorpay";
+import { Logger } from "@medusajs/medusa";
 
 export default async (req, res) => {
   const webhookSignature = req.headers["x-razorpay-signature"];
 
   const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET;
 
+  const logger = req.scope.resolve("logger") as Logger;
+  logger.info(`Received Razorpay webhook body : ${req.body} rawBody : ${req.rawBody}`);
+
   const validationResponse = Razorpay.validateWebhookSignature(
-    req.rawBody,
+    req.rawBody ?? req.body,
     webhookSignature,
     webhookSecret!
   );
