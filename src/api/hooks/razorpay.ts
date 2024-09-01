@@ -1,13 +1,18 @@
-import { NotificationService } from "medusa-interfaces";
 import Razorpay from "razorpay";
+import { Logger } from "@medusajs/medusa";
 
 export default async (req, res) => {
   const webhookSignature = req.headers["x-razorpay-signature"];
 
   const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET;
 
+  const logger = req.scope.resolve("logger") as Logger;
+  logger.info(
+    `Received Razorpay webhook body : ${req.body} rawBody : ${req.rawBody}`
+  );
+
   const validationResponse = Razorpay.validateWebhookSignature(
-    req.rawBody,
+    req.rawBody ?? req.body,
     webhookSignature,
     webhookSecret!
   );
@@ -17,9 +22,13 @@ export default async (req, res) => {
     return;
   }
 
-  const event = req.body.event;
+  const data = JSON.parse(req.body);
 
-  const cartId = req.body.payload.payment.entity.notes.cart_id;
+  const event = data.event;
+
+  const cartId =
+    data.payload.payment.entity.notes.cart_id ??
+    data.payload.payment.entity.notes.resource_id;
 
   // const razorpayProviderService = req.scope.resolve('pp_razorpay');
   const orderService = req.scope.resolve("orderService");

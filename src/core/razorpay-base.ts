@@ -255,11 +255,11 @@ abstract class RazorpayBase extends AbstractPaymentProcessor {
       (cart?.billing_address as any)?.gstin ??
       (customer?.metadata?.gstin as string) ??
       undefined;
-    if (!phone || !email) {
-      throw new Error(
-        "Razorpay-Provider didn't receive email or " +
-          "phone number to create razorpay customer"
-      );
+    if (!phone) {
+      throw new Error("phone number to create razorpay customer");
+    }
+    if (!email) {
+      throw new Error("email to create razorpay customer");
     }
     const firstName =
       cart?.billing_address.first_name ?? customer.first_name ?? "";
@@ -396,7 +396,7 @@ abstract class RazorpayBase extends AbstractPaymentProcessor {
       } catch (e) {
         // if customer already exists in razorpay but isn't associated with a customer in medsusa
         try {
-          this.logger.info("the relinking  customer  in razopay by polling");
+          this.logger.info("relinking  customer  in razorpay by polling");
 
           razorpayCustomer = await this.fetchOrPollForCustomer(customer);
         } catch (e) {
@@ -426,16 +426,24 @@ abstract class RazorpayBase extends AbstractPaymentProcessor {
     } = context;
 
     const sessionNotes = paymentSessionData.notes as Record<string, string>;
-    const intentRequest: Orders.RazorpayOrderCreateRequestBody = {
+    const intentRequest: Orders.RazorpayOrderCreateRequestBody & {
+      payment_capture?: Orders.RazorpayCapturePayment;
+    } = {
       amount: Math.round(amount),
       currency: currency_code.toUpperCase(),
       notes: { ...sessionNotes, resource_id },
       payment: {
-        capture: this.options_.capture ? "automatic" : "manual",
+        capture: this.options_.auto_capture ? "automatic" : "manual",
         capture_options: {
           refund_speed: this.options_.refund_speed ?? "normal",
-          automatic_expiry_period: this.options_.automatic_expiry_period ?? 5,
-          manual_expiry_period: this.options_.manual_expiry_period ?? 10,
+          automatic_expiry_period: Math.max(
+            this.options_.automatic_expiry_period ?? 20,
+            12
+          ),
+          manual_expiry_period: Math.max(
+            this.options_.manual_expiry_period ?? 10,
+            7200
+          ),
         },
       },
       ...intentRequestData,
@@ -450,19 +458,21 @@ abstract class RazorpayBase extends AbstractPaymentProcessor {
       );
       try {
         if (razorpayCustomer) {
+          this.logger.debug(`the intent: ${JSON.stringify(intentRequest)}`);
           session_data = await this.razorpay_.orders.create(intentRequest);
         } else {
           this.logger.error("unable to find razorpay customer");
         }
       } catch (e) {
         return this.buildError(
-          "An error occurred in InitiatePayment during the creation of the razorpay payment intent",
+          "An error occurred in InitiatePayment during the creation of the razorpay payment intent: " +
+            JSON.stringify(e),
           e
         );
       }
     } catch (e) {
       return this.buildError(
-        "An error occurred in creating customer request",
+        "An error occurred in creating customer request:" + e.message,
         e
       );
     }

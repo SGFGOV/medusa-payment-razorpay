@@ -43,6 +43,7 @@ In your environment file (.env) you need to define
 RAZORPAY_ID=<your api key>
 RAZORPAY_SECRET=<your api key secret>
 RAZORPAY_ACCOUNT=<your razorpay account number/merchant id>
+RAZORPAY_WEBHOOK_SECRET=<your web hook secret as defined in the webhook settings in the razorpay dashboard >
 ```
 You need to add the plugin into your medusa-config.js as shown below
 
@@ -58,8 +59,8 @@ const plugins = [
                 automatic_expiry_period: 30, /*any value between 12 minutes and 30 days expressed in minutes*/
                 manual_expiry_period: 7200,
                 refund_speed: "normal", 
-                webhook_secret: process.env.RAZORPAY_SECRET,
-capture:"automatic"
+                webhook_secret: process.env.RAZORPAY_WEBHOOK_SECRET,
+auto_capture: true // if you want to automatically capture, 
     }
   },
   ...]
