@@ -60,7 +60,7 @@ const plugins = [
                 manual_expiry_period: 7200,
                 refund_speed: "normal", 
                 webhook_secret: process.env.RAZORPAY_WEBHOOK_SECRET,
-capture:"automatic"
+auto_capture: "true" // if you want to automatically capture, 
     }
   },
   ...]

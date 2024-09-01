@@ -22,9 +22,13 @@ export default async (req, res) => {
     return;
   }
 
-  const event = req.body.event;
+  const data = JSON.parse(req.body);
 
-  const cartId = req.body.payload.payment.entity.notes.cart_id;
+  const event = data.event;
+
+  const cartId =
+    data.payload.payment.entity.notes.cart_id ??
+    data.payload.payment.entity.notes.resource_id;
 
   // const razorpayProviderService = req.scope.resolve('pp_razorpay');
   const orderService = req.scope.resolve("orderService");

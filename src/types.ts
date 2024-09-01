@@ -9,7 +9,7 @@ export interface RazorpayOptions {
   /**
    * Use this flag to capture payment immediately (default is false)
    */
-  capture?: string;
+  auto_capture?: boolean;
   /**
    * set `automatic_payment_methods` to `{ enabled: true }`
    */
