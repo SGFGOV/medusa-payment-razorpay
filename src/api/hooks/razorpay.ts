@@ -1,28 +1,41 @@
 import Razorpay from "razorpay";
 import { Logger } from "@medusajs/medusa";
-
+import _ from "lodash";
 export default async (req, res) => {
   const webhookSignature = req.headers["x-razorpay-signature"];
 
   const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET;
 
   const logger = req.scope.resolve("logger") as Logger;
-  logger.info(
-    `Received Razorpay webhook body : ${req.body} rawBody : ${req.rawBody}`
-  );
 
-  const validationResponse = Razorpay.validateWebhookSignature(
-    req.rawBody ?? req.body,
-    webhookSignature,
-    webhookSecret!
-  );
+  if (_.isObject(req.body)) {
+    logger.info(
+      `Received Razorpay webhook body as object : ${JSON.stringify(req.body)}`
+    );
+  } else {
+    logger.info(
+      `Received Razorpay webhook body : ${req.body} rawBody : ${req.rawBody}`
+    );
+  }
 
-  // return if validation fails
-  if (!validationResponse) {
+  try {
+    const validationResponse = Razorpay.validateWebhookSignature(
+      req.rawBody ?? req.body,
+      webhookSignature,
+      webhookSecret!
+    );
+    // return if validation fails
+    if (!validationResponse) {
+      res.sendStatus(400);
+      return;
+    }
+  } catch (error) {
+    logger.error(`Razorpay webhook validation failed : ${error}`);
+    res.sendStatus(500);
     return;
   }
 
-  const data = JSON.parse(req.body);
+  const data = _.isObject(req.body) ? req.body : JSON.parse(req.body);
 
   const event = data.event;
 
