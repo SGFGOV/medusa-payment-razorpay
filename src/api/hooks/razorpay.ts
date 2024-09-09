@@ -7,35 +7,55 @@ export default async (req, res) => {
   const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET;
 
   const logger = req.scope.resolve("logger") as Logger;
-
+  let data;
   if (_.isObject(req.body)) {
     logger.info(
       `Received Razorpay webhook body as object : ${JSON.stringify(req.body)}`
     );
+    try {
+      const validationResponse = Razorpay.validateWebhookSignature(
+        req.rawBody ?? req.body.data ?? req.body,
+        webhookSignature,
+        webhookSecret!
+      );
+      // return if validation fails
+      if (!validationResponse) {
+        res.sendStatus(400);
+        return;
+      }
+      data = _.isObject(req.body)
+        ? req.body?.data?.toString()
+        : req.body?.toString();
+      if (_.isString(data)) {
+        data = JSON.parse(data);
+      }
+    } catch (error) {
+      logger.error(`Razorpay webhook validation failed : ${error}`);
+      res.sendStatus(500);
+      return;
+    }
   } else {
     logger.info(
       `Received Razorpay webhook body : ${req.body} rawBody : ${req.rawBody}`
     );
-  }
-
-  try {
-    const validationResponse = Razorpay.validateWebhookSignature(
-      req.rawBody ?? req.body,
-      webhookSignature,
-      webhookSecret!
-    );
-    // return if validation fails
-    if (!validationResponse) {
-      res.sendStatus(400);
+    try {
+      const validationResponse = Razorpay.validateWebhookSignature(
+        req.rawBody ?? req.body,
+        webhookSignature,
+        webhookSecret!
+      );
+      // return if validation fails
+      if (!validationResponse) {
+        res.sendStatus(400);
+        return;
+      }
+    } catch (error) {
+      logger.error(`Razorpay webhook validation failed : ${error}`);
+      res.sendStatus(500);
       return;
     }
-  } catch (error) {
-    logger.error(`Razorpay webhook validation failed : ${error}`);
-    res.sendStatus(500);
-    return;
+    data = JSON.parse(req.body);
   }
-
-  const data = _.isObject(req.body) ? req.body : JSON.parse(req.body);
 
   const event = data.event;
 
