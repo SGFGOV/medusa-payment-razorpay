@@ -589,7 +589,7 @@ abstract class RazorpayBase extends AbstractPaymentProcessor {
       }
       return paymentSessionData;
     } catch (error) {
-      return this.buildError("An error occurred in syncRefundPayment", error);
+      return this.buildError("An error occurred in refundPayment", error);
     }
   }
 
