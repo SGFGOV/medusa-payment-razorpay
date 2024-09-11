@@ -200,9 +200,8 @@ abstract class RazorpayBase extends AbstractPaymentProcessor {
     // edit the customer once fetched
     if (razorpayCustomer) {
       const editEmail = cart.email ?? razorpayCustomer.email;
-      const editName = `${
-        cart.billing_address.first_name ?? customer.first_name ?? ""
-      } ${cart.billing_address.last_name ?? customer.last_name ?? ""}`.trim();
+      const editName = `${cart.billing_address.first_name ?? customer.first_name ?? ""
+        } ${cart.billing_address.last_name ?? customer.last_name ?? ""}`.trim();
       const editPhone =
         cart.billing_address.phone ??
         (customer?.phone || customer?.billing_address?.phone);
@@ -466,7 +465,7 @@ abstract class RazorpayBase extends AbstractPaymentProcessor {
       } catch (e) {
         return this.buildError(
           "An error occurred in InitiatePayment during the creation of the razorpay payment intent: " +
-            JSON.stringify(e),
+          JSON.stringify(e),
           e
         );
       }
@@ -482,10 +481,10 @@ abstract class RazorpayBase extends AbstractPaymentProcessor {
       update_requests: customer?.metadata?.razorpay_id
         ? undefined
         : {
-            customer_metadata: {
-              razorpay_id: intentRequest.notes!.razorpay_id,
-            },
+          customer_metadata: {
+            razorpay_id: intentRequest.notes!.razorpay_id,
           },
+        },
     };
   }
 
@@ -495,9 +494,9 @@ abstract class RazorpayBase extends AbstractPaymentProcessor {
   ): Promise<
     | PaymentProcessorError
     | {
-        status: PaymentSessionStatus;
-        data: PaymentProcessorSessionResponse["session_data"];
-      }
+      status: PaymentSessionStatus;
+      data: PaymentProcessorSessionResponse["session_data"];
+    }
   > {
     const status = await this.getPaymentStatus(paymentSessionData);
     return { data: paymentSessionData, status };
@@ -562,42 +561,36 @@ abstract class RazorpayBase extends AbstractPaymentProcessor {
   ): Promise<
     PaymentProcessorError | PaymentProcessorSessionResponse["session_data"]
   > {
-    const id = (paymentSessionData as unknown as Orders.RazorpayOrder)
-      .id as string;
-    const paymentIntent = await this.razorpay_.orders.fetch(id);
-    const paymentList = paymentIntent.payments ?? {};
-
-    const paymentIds = Object.keys(paymentList);
-    const payments = await Promise.all(
-      paymentIds.map(
-        async (paymentId) => await this.razorpay_.payments.fetch(paymentId)
-      )
-    );
-    const payment_id = payments.find((p) => {
-      parseInt(p.amount.toString()) >= refundAmount;
-    })?.id;
-
-    if (payment_id) {
-      const refundRequest: Refunds.RazorpayRefundCreateRequestBody = {
-        amount: refundAmount,
-      };
-      try {
-        const refundSession = await this.razorpay_.payments.refund(
-          payment_id,
-          refundRequest
-        );
-        const refundsIssued =
-          paymentSessionData.refundSessions as Refunds.RazorpayRefund[];
-        if (refundsIssued?.length > 0) {
-          refundsIssued.push(refundSession);
-        } else {
-          paymentSessionData.refundSessions = [refundSession];
+    try {
+      const id = (paymentSessionData as unknown as Orders.RazorpayOrder).id as string;
+      const payments = await this.razorpay_.orders.fetchPayments(id);
+      const payment_id = payments.items.find((p) => {
+        return parseInt(p.amount.toString()) >= refundAmount;
+      })?.id;
+      if (payment_id) {
+        const refundRequest: Refunds.RazorpayRefundCreateRequestBody = {
+          amount: refundAmount,
+        };
+        try {
+          const refundSession = await this.razorpay_.payments.refund(
+            payment_id,
+            refundRequest
+          );
+          const refundsIssued =
+            paymentSessionData.refundSessions as Refunds.RazorpayRefund[];
+          if (refundsIssued?.length > 0) {
+            refundsIssued.push(refundSession);
+          } else {
+            paymentSessionData.refundSessions = [refundSession];
+          }
+        } catch (e) {
+          return this.buildError("An error occurred in refundPayment", e);
         }
-      } catch (e) {
-        return this.buildError("An error occurred in refundPayment", e);
       }
+      return paymentSessionData;
+    } catch (error) {
+      return this.buildError("An error occurred in syncRefundPayment", error);
     }
-    return paymentSessionData;
   }
 
   async retrievePayment(
@@ -786,8 +779,8 @@ abstract class RazorpayBase extends AbstractPaymentProcessor {
       detail: isPaymentProcessorError(e)
         ? `${e.error}${EOL}${e.detail ?? ""}`
         : "detail" in e
-        ? e.detail
-        : e.message ?? "",
+          ? e.detail
+          : e.message ?? "",
     };
   }
 }
