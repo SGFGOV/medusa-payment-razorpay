@@ -39,11 +39,13 @@ export const RazorpayMock = {
         throw new Error("Error");
       }
 
-      return (
-        Object.values(PaymentIntentDataByStatus).find((value) => {
-          return value.id === orderId;
-        }) ?? {}
-      );
+      return {
+        items: [
+          Object.values(PaymentIntentDataByStatus).find((value) => {
+            return value.id === orderId;
+          }) ?? {},
+        ],
+      };
     }),
     edit: jest.fn().mockImplementation(async (orderId, updateData: any) => {
       if (orderId === FAIL_INTENT_ID) {

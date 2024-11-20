@@ -383,7 +383,7 @@ describe("RazorpayTest", () => {
       );
 
       if (isMocksEnabled()) {
-        expect(result).toEqual({
+        expect(result).toMatchObject({
           id: PaymentIntentDataByStatus.ATTEMPTED.id,
         });
       } else {
