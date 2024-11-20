@@ -23,9 +23,7 @@ export default async (req, res) => {
         res.sendStatus(400);
         return;
       }
-      data = _.isObject(req.body)
-        ? req.body?.data?.toString()
-        : req.body?.toString();
+      data = req.body?.toString();
       if (_.isString(data)) {
         data = JSON.parse(data);
       }
