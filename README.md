@@ -87,6 +87,7 @@ import { Cart,PaymentSession } from "@medusajs/medusa"
 import Spinner from "@modules/common/icons/spinner"
 import React, { useCallback, useState } from "react"
 import useRazorpay, { RazorpayOptions } from "react-razorpay"
+import { placeOrder } from "@modules/checkout/actions"
 
 export const RazorpayPaymentButton = ({
   session,
