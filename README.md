@@ -1,4 +1,4 @@
-# MEDUSA-PAYMENT-RAZORPAY
+# MEDUSA-PAYMENT-RAZORPAY - For Medusa V1 1.X.X
 
 # Support the Medusa-Payment-Razorpay Plugin - Elevate Our Medusa Community!
 
