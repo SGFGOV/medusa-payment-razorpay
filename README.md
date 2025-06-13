@@ -20,7 +20,7 @@ No hassle, no fuss! Install Medusa-Payment-Razorpay effortlessly with npm:
 
 ```bash
 npm install medusa-payment-razorpay
-
+```
 
 
 [RAZORPAY](https://razorpay.com) an immensely popular payment gateway with a host of features. 
